@@ -153,7 +153,7 @@ nav button.on{color:var(--acc)}
     </div>
     <div class="card" style="margin-top:10px">
       <div class="sw"><div><b>Contar repeticiones con cámara</b><div class="sub" style="margin-top:3px">No avanzas hasta completar tus reps. Compromiso de verdad.</div></div><button class="tg" id="tgCam" aria-label="Cámara"></button></div>
-      <div class="sw" id="grabRow" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:none"><div><b>Grabar mi sesión en video</b><div class="sub" style="margin-top:3px">Solo tus series, con contador y marca de agua, listo para redes.</div></div><button class="tg" id="tgGrab" aria-label="Grabar"></button></div>
+      <div class="sw" id="grabRow" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:none"><div><b>Grabar mi sesión en video</b><div class="sub" style="margin-top:3px">Solo tus series, con contador y marca de agua, listo para redes. Funciona aunque no cuentes reps.</div></div><button class="tg" id="tgGrab" aria-label="Grabar"></button></div>
       <div class="sub" id="camInfo" style="margin-top:10px;display:none">Pon el celular apoyado en el piso o una silla a 2–3 m, que se vea todo tu cuerpo. Para flexiones y puente, ponte de lado.</div>
     </div>
     <div id="manualBox">
@@ -443,8 +443,8 @@ function renderHoy(){
   if(!$("demoCam").innerHTML) $("demoCam").innerHTML=demoSVG("caminata",48);
   $("sugerida").innerHTML=`<div class="tag">${hechaHoy?"¡Ya entrenaste hoy! ¿Otra más?":(r>=3?"Llevas "+r+" días seguidos: toca descanso activo":"Recomendada")}</div>
     <h3>${nomR(sug)}</h3>${S.plan&&!sug.fijo?`<div class="sub" style="color:var(--acc)">Plan: semana ${semana()} de 4${S.bajo?" · bajo impacto":""}</div>`:""}<div class="sub">${minTxt(duracion(sug))} · ${sug.ej.length} ejercicios · ${lastTxt(sug.id)}</div>
-    <button class="btn" style="margin-top:14px" onclick="empezar('${sug.id}')">▶ Empezar</button>
-    <button class="btn ghost" style="margin-top:8px" onclick="detalle('${sug.id}')">Ver ejercicios</button>`;
+    <button class="btn" style="margin-top:14px" onclick="detalle('${sug.id}')">▶ Empezar</button>
+    `;
 }
 function seg(el,opts,cur,fn){$(el).innerHTML=opts.map(o=>`<button class="${o.v==cur?"on":""}" data-v="${o.v}">${o.l}</button>`).join("");
   $(el).querySelectorAll("button").forEach(b=>b.onclick=()=>fn(b.dataset.v));}
@@ -453,7 +453,7 @@ function renderRutinas(){
   $("intTxt").textContent=(INT.find(i=>i.k===S.int)||INT[0]).txt+(S.cam?" Con cámara: "+REPS[S.int]+" reps por ejercicio contable.":"");
   $("tgCam").classList.toggle("on",!!S.cam); $("camInfo").style.display=S.cam?"block":"none";
   $("tgBajo").classList.toggle("on",!!S.bajo); $("tgPlan").classList.toggle("on",!!S.plan);
-  $("tgGrab").classList.toggle("on",!!S.grabar); $("grabRow").style.display=S.cam?"flex":"none";
+  $("tgGrab").classList.toggle("on",!!S.grabar); $("grabRow").style.display="flex";
   $("tgBajo").onclick=()=>{S.bajo=!S.bajo;save();renderAll();};
   $("tgPlan").onclick=()=>{S.plan=!S.plan;save();renderAll();};
   $("tgGrab").onclick=()=>{S.grabar=!S.grabar;save();renderAll();};
@@ -524,7 +524,11 @@ window.detalle=id=>{const r=RUT.find(x=>x.id===id),c=cfg(r);
   <div class="row" style="margin:14px 0 6px;flex-wrap:wrap"><span class="pill on">${minTxt(duracion(r))}</span><span class="pill">${c.rondas} ronda${c.rondas>1?"s":""}</span><span class="pill">${c.w}s / ${c.r}s</span></div>
   ${exs(r).map((k,i)=>`<div class="ex">${demoSVG(k,64)}<div style="flex:1"><b>${EJ[k].n}</b><small>${EJ[k].t}</small></div><span class="pill ${usaCam(r,k)?"on":""}" style="align-self:flex-start">${usaCam(r,k)?metaReps(k)+" reps":c.w+" s"}</span></div>`).join("")}
   ${S.cam&&!r.fijo?'<p class="sub" style="margin-top:10px">Los que dicen "reps" los cuenta la cámara. Los demás van por tiempo.</p>':""}
-  <button class="btn" style="margin-top:16px" onclick="cerrar();empezar('${r.id}')">▶ Empezar</button>`;
+  <div class="row" style="margin-top:14px;gap:8px">
+    <button class="pill ${S.cam?"on":""}" style="flex:1;padding:10px" onclick="S.cam=!S.cam;save();renderAll();detalle('${r.id}')">📷 Contar reps</button>
+    <button class="pill ${S.grabar?"on":""}" style="flex:1;padding:10px" onclick="S.grabar=!S.grabar;save();renderAll();detalle('${r.id}')">⏺ Grabar video</button>
+  </div>
+  <button class="btn" style="margin-top:10px" onclick="cerrar();empezar('${r.id}')">▶ Empezar</button>`;
   $("modal").classList.add("on");};
 
 /* ===================== REPRODUCTOR ===================== */
@@ -552,12 +556,25 @@ async function cargarDetector(){
   return lmk;
 }
 async function camOn(){
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.isSecureContext) throw new Error("sin cámara");
+  if(!window.isSecureContext||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){const e=new Error("sin cámara");e.name="NoSoportado";throw e;}
   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:640},height:{ideal:480}},audio:false});
   const v=$("vid"); v.srcObject=stream; await v.play();
-  $("cam").classList.add("on"); camMsg("Cargando detector…");
-  await Promise.race([cargarDetector(),new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),25000))]); camMsg("");
-  lastTs=-1; camLoop=requestAnimationFrame(detectar);
+  $("cam").classList.add("on"); lastTs=-1; camLoop=requestAnimationFrame(detectar);
+}
+async function detectorOn(){
+  camMsg("Cargando detector…");
+  try{await Promise.race([cargarDetector(),new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),30000))]);camMsg("");return true;}
+  catch(e){camMsg("");return false;}
+}
+function avisoCam(e){
+  const n=e&&e.name;let t;
+  if(n==="NotAllowedError"||n==="SecurityError") t="Bloqueaste el permiso de cámara. Toca el ícono a la izquierda de la dirección (arriba) → <b>Permisos</b> → <b>Cámara</b> → <b>Permitir</b>, y recarga la página.";
+  else if(n==="NotFoundError"||n==="OverconstrainedError") t="No encontré una cámara en este dispositivo.";
+  else if(n==="NotReadableError") t="Otra app está usando la cámara. Ciérrala y vuelve a intentar.";
+  else if(n==="NoSoportado") t="Aquí la cámara no está disponible. Abre la app desde <b>jimenez097y.github.io/repreal</b> en Chrome, Brave o Safari.";
+  else t="No se pudo abrir la cámara ("+(n||"error")+").";
+  $("sheet").innerHTML=`<h2 style="margin-top:0">📷 Cámara no disponible</h2><p class="sub" style="font-size:15px;line-height:1.5">${t}</p><p class="sub" style="margin-top:10px">Mientras tanto, la rutina sigue con temporizador.</p><button class="btn" style="margin-top:16px" onclick="cerrar()">Entendido</button>`;
+  $("modal").classList.add("on");
 }
 function camOff(){cancelAnimationFrame(camLoop);camLoop=null;try{stream&&stream.getTracks().forEach(t=>t.stop());}catch(e){}stream=null;$("cam").classList.remove("on");}
 function camMsg(t){const m=$("camMsg");m.textContent=t;m.classList.toggle("on",!!t);}
@@ -579,8 +596,9 @@ function medir(L,cfgc){
 }
 function detectar(){
   camLoop=requestAnimationFrame(detectar);
-  const v=$("vid"); if(!lmk||v.readyState<2||v.currentTime===lastTs) return; lastTs=v.currentTime;
-  let res; try{res=lmk.detectForVideo(v,performance.now());}catch(e){return;}
+  const v=$("vid"); if(v.readyState<2||v.currentTime===lastTs) return; lastTs=v.currentTime;
+  if(!lmk||!(PL&&PL.conteo)){ grabCuadro(null); return; }
+  let res; try{res=lmk.detectForVideo(v,performance.now());}catch(e){grabCuadro(null);return;}
   const cv=$("cv"); if(cv.width!==v.videoWidth){cv.width=v.videoWidth;cv.height=v.videoHeight;}
   const ctx=cv.getContext("2d"); ctx.clearRect(0,0,cv.width,cv.height);
   const L=res&&res.landmarks&&res.landmarks[0];
@@ -605,16 +623,20 @@ function avanzar(){if(!PL)return;if(PL.i>=PL.p.length-1)return fin(false);PL.i++
 
 window.empezar=async id=>{const r=RUT.find(x=>x.id===id);
   try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();actx.resume();}catch(e){}
-  let cam=false; REC=null;
-  if(S.cam&&!r.fijo&&exs(r).some(k=>CNT[k])){
-    $("player").classList.add("on");$("pName").textContent="Activando cámara…";$("pTip").textContent="";$("ring").classList.add("off");
-    try{await camOn();cam=true;if(S.grabar)grabIniciar();}catch(e){camOff();toast("Cámara no disponible aquí: va con temporizador");}
+  let cam=false,conteo=false,err=null; REC=null;
+  const quiereConteo=S.cam&&!r.fijo&&exs(r).some(k=>CNT[k]);
+  if(quiereConteo||S.grabar){
+    $("player").classList.add("on");$("pName").textContent="Activando cámara…";$("pTip").textContent="";$("pDemo").innerHTML="";$("ring").classList.add("off");
+    try{await camOn();cam=true;}catch(e){camOff();err=e;}
+    if(cam&&quiereConteo){conteo=await detectorOn();if(!conteo)toast("No cargó el contador de reps: va por tiempo");}
+    if(cam&&S.grabar)grabIniciar();
   }
-  PL={r,cam,p:pasos(r,cam),i:0,run:true,hecho:0,ini:Date.now(),cnt:0,fase:null,ema:null,totalReps:0,repsPor:{},metaTotal:0,saltados:0,dolor:new Set()};
+  PL={r,cam,conteo,p:pasos(r,conteo),i:0,run:true,hecho:0,ini:Date.now(),cnt:0,fase:null,ema:null,totalReps:0,repsPor:{},metaTotal:0,saltados:0,dolor:new Set()};
   if(S.plan&&!S.inicio){S.inicio=hoyStr();save();}
   PL.metaTotal=PL.p.reduce((a,s)=>a+(s.reps||0),0); PL.left=PL.p[0].s;
   try{wake=await navigator.wakeLock.request("screen");}catch(e){}
-  $("player").classList.add("on");icoPlay(true);pinta(true);clearInterval(tick);tick=setInterval(paso,1000);};
+  $("player").classList.add("on");icoPlay(true);pinta(true);clearInterval(tick);tick=setInterval(paso,1000);
+  if(err){PL.run=false;icoPlay(false);avisoCam(err);const c=$("modal");const f=()=>{if(!c.classList.contains("on")){PL&&(PL.run=true);icoPlay(true);}else setTimeout(f,300);};setTimeout(f,300);}};
 function paso(){if(!PL||!PL.run)return;const st=PL.p[PL.i];
   if(st.tipo==="work")PL.hecho++;
   if(st.reps){PL.left++;return;} // modo reps: cuenta tiempo hacia arriba, no avanza solo
@@ -649,7 +671,7 @@ $("pDuele").onclick=()=>{if(!PL)return;let st=PL.p[PL.i];
   PL.i=Math.max(PL.i,0);avanzar();};
 $("pPrev").onclick=()=>{PL.i=Math.max(0,PL.i-1);PL.left=PL.p[PL.i].s;PL.cnt=0;PL.fase=null;PL.ema=null;pinta(true);};
 $("pSalir").onclick=()=>{PL.run=false;icoPlay(false);
-  $("sheet").innerHTML=`<h2 style="margin-top:0">¿Terminar la sesión?</h2><p class="sub">Llevas ${Math.round(PL.hecho/60)} min de trabajo${PL.cam?" y "+PL.totalReps+" reps contadas":""}.</p>
+  $("sheet").innerHTML=`<h2 style="margin-top:0">¿Terminar la sesión?</h2><p class="sub">Llevas ${Math.round(PL.hecho/60)} min de trabajo${PL.conteo?" y "+PL.totalReps+" reps contadas":""}.</p>
   <button class="btn" style="margin-top:16px" onclick="cerrar();fin(true)">Guardar lo que hice</button>
   <button class="btn ghost" style="margin-top:8px" onclick="cerrar();salir()">Salir sin guardar</button>
   <button class="btn ghost" style="margin-top:8px" onclick="cerrar();PL.run=true;icoPlay(true)">Seguir entrenando</button>`;
@@ -659,17 +681,17 @@ window.salir=(conRec)=>{clearInterval(tick);camOff();PL=null;$("pRec").style.dis
 window.fin=parcial=>{clearInterval(tick);const P=PL,r=P.r;const seg=Math.round((Date.now()-P.ini)/1000);
   const kg=pesoActual()||75; const kcal=r.met*kg*(seg/3600);
   const ses={id:Date.now()+"",t:Date.now(),f:hoyStr(),rut:r.id,seg,kcal:Math.round(kcal),parcial:!!parcial||P.saltados>0};
-  if(P.cam){ses.reps=P.totalReps;ses.metaReps=P.metaTotal;ses.cam=true;}
+  if(P.conteo){ses.reps=P.totalReps;ses.metaReps=P.metaTotal;ses.cam=true;}
   if(P.dolor.size){ses.dolor=[...P.dolor];}
   if(P.hecho>=30||P.totalReps>0){S.sesiones.push(ses);save();}
   beep(990,.15);setTimeout(()=>beep(1320,.3),180);hablar(parcial?"Bien hecho":"¡Rutina completa! Excelente trabajo");
   const grabando=!!REC; if(grabando) grabFinal(P,seg,()=>grabMostrar());
   salir(grabando);renderAll();
-  const pct=P.cam&&P.metaTotal?Math.round(100*P.totalReps/P.metaTotal):null;
+  const pct=P.conteo&&P.metaTotal?Math.round(100*P.totalReps/P.metaTotal):null;
   $("sheet").innerHTML=`<div style="text-align:center"><div class="big" style="font-size:56px;color:var(--acc);font-weight:800">${parcial?"¡Bien!":"¡Lo lograste!"}</div>
   <p class="sub">${r.n}</p>
   <div class="grid3" style="margin:18px 0"><div class="stat"><b>${Math.round(seg/60)}</b><span>min</span></div>
-  ${P.cam?`<div class="stat"><b>${P.totalReps}</b><span>reps verificadas</span></div>`:`<div class="stat"><b>${Math.round(kcal)}</b><span>kcal aprox.</span></div>`}
+  ${P.conteo?`<div class="stat"><b>${P.totalReps}</b><span>reps verificadas</span></div>`:`<div class="stat"><b>${Math.round(kcal)}</b><span>kcal aprox.</span></div>`}
   <div class="stat"><b>${$("s-racha").textContent}</b><span>racha</span></div></div>
   ${pct!==null?`<p class="sub">Cumpliste el ${Math.min(pct,100)}% de las repeticiones${P.saltados?" · saltaste "+P.saltados+" ejercicio"+(P.saltados>1?"s":""):""}.</p>`:""}
   ${P.dolor.size?`<p class="sub" style="margin-top:6px;color:var(--acc2)">Saltaste por molestia: ${[...P.dolor].join(", ")}. Si el dolor se repite o es en la articulación, no lo fuerces y consúltalo.</p>`:""}
