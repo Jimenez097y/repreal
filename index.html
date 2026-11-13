@@ -90,6 +90,13 @@ nav button.on{color:var(--acc)}
 .shead{position:sticky;top:0;z-index:2;background:var(--card);display:flex;justify-content:center;align-items:center;height:48px;margin:0 -18px 6px;border-radius:22px 22px 0 0}
 .grab{width:42px;height:5px;border-radius:9px;background:var(--line)}
 .sheetx{position:absolute;right:12px;top:7px;width:36px;height:36px;border-radius:50%;background:var(--card2);border:1px solid var(--line);font-size:16px;color:var(--tx)}
+#zoom{position:fixed;inset:0;z-index:80;background:rgba(10,12,15,.97);display:none;overflow:auto;padding:calc(56px + env(safe-area-inset-top)) 18px 30px}
+#zoom.on{display:block}
+.zin{max-width:460px;margin:0 auto;text-align:center}
+.zfig svg{width:min(84vw,330px);height:auto;background:var(--card);border-radius:22px;margin:10px auto 6px;display:block}
+.tip{font-size:14px;padding:8px 10px;border-radius:10px;margin-top:6px}
+.tip.ok{background:rgba(198,255,61,.1);color:#dfff9a}
+.tip.no{background:rgba(255,107,61,.1);color:#ffb59a}
 .sfoot{position:sticky;bottom:calc(-22px - env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--card) 22%);margin:0 -18px;padding:18px 18px 4px}
 .toast{position:fixed;left:50%;top:16px;transform:translateX(-50%);background:var(--acc);color:#111;padding:10px 16px;border-radius:12px;font-weight:700;z-index:99;display:none}
 .sync{font-size:11px;color:var(--mut)}
@@ -258,6 +265,7 @@ nav button.on{color:var(--acc)}
   </div>
 </div>
 
+<div id="zoom"></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -539,13 +547,14 @@ let modalHist=false,ignorarPop=false;
 function abrir(){const m=$("modal");if(!m.classList.contains("on")){$("sheetBox").scrollTop=0;m.classList.add("on");try{history.pushState({modal:1},"");modalHist=true;}catch(e){modalHist=false;}}}
 function cierraUI(){$("modal").classList.remove("on");}
 window.cerrar=()=>{if(!$("modal").classList.contains("on"))return;cierraUI();if(modalHist){modalHist=false;ignorarPop=true;try{history.back();}catch(e){ignorarPop=false;}}};
-window.addEventListener("popstate",()=>{if(ignorarPop){ignorarPop=false;return;}if($("modal").classList.contains("on")){modalHist=false;cierraUI();}});
+window.addEventListener("popstate",()=>{if(ignorarPop){ignorarPop=false;return;}if($("zoom").classList.contains("on"))return;if($("modal").classList.contains("on")){modalHist=false;cierraUI();}});
 /* deslizar hacia abajo desde la cabecera para cerrar */
 (()=>{let y0=null;const h=()=>document.querySelector(".shead");document.addEventListener("touchstart",e=>{if(h()&&h().contains(e.target))y0=e.touches[0].clientY;},{passive:true});
  document.addEventListener("touchend",e=>{if(y0!=null&&e.changedTouches[0].clientY-y0>60)cerrar();y0=null;},{passive:true});})();
 $("modal").onclick=e=>{if(e.target.id==="modal")cerrar();};
 window.detalle=id=>{const r=RUT.find(x=>x.id===id),c=cfg(r);
   $("sheet").innerHTML=`<div class="row"><div class="ic" style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:${r.c};color:#111;font-family:'Barlow Condensed';font-weight:800">${r.ab}</div><div><h2 style="margin:0">${nomR(r)}</h2><div class="sub">${r.d}</div></div></div>
+  <p class="sub" style="margin-top:10px;font-size:13px">👆 Toca cualquier figura para verla en grande, en cámara lenta y con tips.</p>
   <div class="row" style="margin:14px 0 6px;flex-wrap:wrap"><span class="pill on">${minTxt(duracion(r))}</span><span class="pill">${c.rondas} ronda${c.rondas>1?"s":""}</span><span class="pill">${c.w}s / ${c.r}s</span></div>
   ${usaCal(r)?`<h3 style="margin:16px 0 4px;color:#ffd23d">Calentamiento · ${Math.round(r.cal.length*T_CAL/60*10)/10} min</h3>`+r.cal.map(k=>`<div class="ex">${demoSVG(k,56)}<div style="flex:1"><b>${EJ[k].n}</b><small>${EJ[k].t}</small></div><span class="pill" style="align-self:flex-start">${T_CAL} s</span></div>`).join("")+`<h3 style="margin:16px 0 4px;color:var(--acc)">Rutina</h3>`:""}
   ${exs(r).map((k,i)=>`<div class="ex">${demoSVG(k,64)}<div style="flex:1"><b>${EJ[k].n}</b><small>${EJ[k].t}</small></div><span class="pill ${usaCam(r,k)?"on":""}" style="align-self:flex-start">${usaCam(r,k)?metaReps(k)+" reps":c.w+" s"}</span></div>`).join("")}
@@ -677,7 +686,7 @@ function pinta(nuevo){const st=PL.p[PL.i],e=EJ[st.k],c=cfg(PL.r);
   const col={prep:"#4fb3ff",work:"#c6ff3d",rest:"#ff6b3d",ronda:"#9d8bff",cal:"#ffd23d",vc:"#9d8bff"}[st.tipo];
   $("pPhase").textContent=st.reps?"Cuenta la cámara":{prep:PL.cam?"Ubica el celular y colócate":"Prepárate",work:"¡Dale!",rest:"Descansa · sigue",cal:"Calentamiento",vc:"Estiramiento final",ronda:"Descanso · ronda "+st.ro}[st.tipo];
   $("pPhase").style.color=col;$("pArc").style.stroke=col;$("cam").style.borderColor=col;
-  $("pName").textContent=e.n;$("pTip").textContent=e.t;
+  $("pName").textContent=e.n;$("pTip").innerHTML=e.t+(GUIA[st.k]&&GUIA[st.k][1]?`<div style="color:#dfff9a;font-size:13px;margin-top:4px">✅ ${GUIA[st.k][1]}</div>`:"");
   if(nuevo||!$("pDemo").innerHTML){ if(PL.cam){$("pDemo").innerHTML="";let mi=$("cam").querySelector(".mini");if(mi)mi.remove();$("cam").insertAdjacentHTML("beforeend",`<div class="mini">${demoSVG(st.k,84)}</div>`);}
     else $("pDemo").innerHTML=demoSVG(st.k,st.tipo==="work"?120:150); }
   if(PL.cam){$("ring").classList.add("off");
@@ -892,15 +901,6 @@ const LEN={tor:30,cab:11,brazo:15,ante:14,muslo:22,pierna:22};
 function pol(p,a,l){const r=a*Math.PI/180;return [p[0]+l*Math.sin(r),p[1]+l*Math.cos(r)];}
 /* F(x, torso, [hombro,codo] brazo delantero, brazo trasero, [cadera,rodilla] pierna delantera, pierna trasera, extra) */
 function F(x,t,a1,a2,l1,l2,o={}){return {x,t,a1,a2,l1,l2,up:o.up||0,cab:o.cab};}
-function puntos(f){
-  const hip=[f.x,60];const n=pol(hip,f.t,LEN.tor);const h=pol(n,f.cab!=null?f.cab:f.t,LEN.cab);
-  const e1=pol(n,f.a1[0],LEN.brazo),m1=pol(e1,f.a1[1],LEN.ante),e2=pol(n,f.a2[0],LEN.brazo),m2=pol(e2,f.a2[1],LEN.ante);
-  const k1=pol(hip,f.l1[0],LEN.muslo),p1=pol(k1,f.l1[1],LEN.pierna),k2=pol(hip,f.l2[0],LEN.muslo),p2=pol(k2,f.l2[1],LEN.pierna);
-  const P={hip,n,h,e1,m1,e2,m2,k1,p1,k2,p2};
-  let my=-1e9;for(const k in P){const y=P[k][1]+(k==="h"?7:0);if(y>my)my=y;}
-  const dy=108-my-f.up;for(const k in P)P[k]=[P[k][0],P[k][1]+dy];
-  return P;
-}
 const lerp=(a,b,t)=>a+(b-a)*t;
 function mezcla(A,B,t){const o={x:lerp(A.x,B.x,t),t:lerp(A.t,B.t,t),up:lerp(A.up,B.up,t),
   cab:(A.cab!=null||B.cab!=null)?lerp(A.cab!=null?A.cab:A.t,B.cab!=null?B.cab:B.t,t):null};
@@ -983,27 +983,185 @@ function propSVG(p){
   if(p==="paredI")return `<path ${c} d="M40 20 V108"/>`;
   return "";
 }
-const DEMO_ACTIVOS=new Set();
-function demoSVG(k,size){
+/* ---------- guía visual: vista, músculos, tips ---------- */
+const FRENTE=new Set(["jj","jjPaso","pressBotellas","toquesLat","abduccion","cuello","circHip","rotTronco","estTriceps","estHombro","skater"]);
+const BOCA_ABAJO=new Set(["superman","cobra"]);
+const MUS_N={Q:"Cuádriceps",G:"Glúteos",P:"Pantorrillas",Pe:"Pecho",A:"Abdomen",H:"Hombros",B:"Brazos",E:"Espalda",I:"Femorales",C:"Cardio",M:"Movilidad"};
+/* [músculos, ✅ clave, ❌ evita] */
+const GUIA={
+  jj:["C H Q","Aterriza suave con la punta del pie","Bloquear las rodillas al caer"],
+  jjPaso:["C H","Brazos bien arriba en cada paso","Encorvar la espalda"],
+  sentadilla:["Q G","Rodillas en la dirección de los pies","Despegar los talones del piso"],
+  sentSilla:["Q G","Baja lento, toca la silla y sube empujando con los talones","Dejarte caer sobre la silla"],
+  sentPulso:["Q G","Mantente abajo, rebotes cortos","Subir del todo entre rebotes"],
+  sentSalto:["Q G C","Aterriza suave y vuelve a bajar","Caer con las rodillas hacia adentro"],
+  sentPress:["Q G H","Sube y estira los brazos en un solo movimiento","Arquear la espalda baja arriba"],
+  zancada:["Q G","Torso recto, rodilla de adelante sobre el tobillo","Que la rodilla pase la punta del pie"],
+  zancadaAtras:["Q G","Apóyate en la silla si pierdes el equilibrio","Inclinar el torso hacia adelante"],
+  flexion:["Pe B H","Cuerpo recto como tabla, codos a 45°","Dejar caer la cadera"],
+  flexAbierta:["Pe H","Baja el pecho entre las manos","Codos abiertos a 90°"],
+  flexPared:["Pe B","Cuerpo recto, acerca el pecho a la pared","Doblar la cadera"],
+  flexInclinada:["Pe B","Silla firme contra la pared","Hundir los hombros"],
+  plancha:["A E H","Aprieta abdomen y glúteos, respira","Subir o hundir la cadera"],
+  planchaRod:["A H","Línea recta de rodillas a cabeza","Contener la respiración"],
+  escalador:["A C H","Hombros sobre las manos","Rebotar la cadera arriba"],
+  escaladorSilla:["A C","Rodilla al pecho controlada","Apurarte y perder la postura"],
+  burpee:["C Q Pe","Baja con control, sin golpear el piso","Arquear la espalda en la plancha"],
+  rodillas:["C Q","Rodillas a la altura de la cadera","Ir sobre los talones"],
+  marcha:["C Q","Mueve los brazos al ritmo","Encorvarte hacia adelante"],
+  puente:["G I","Aprieta glúteos arriba 1 segundo","Arquear la espalda baja"],
+  sillaPared:["Q","Muslos paralelos al piso","Rodillas por delante de los pies"],
+  pantorrilla:["P","Sube y baja lento","Rebotar rápido"],
+  fondos:["B H","Codos hacia atrás, espalda cerca de la silla","Bajar demasiado si duele el hombro"],
+  pike:["H B","Cadera alta, cabeza entre las manos","Doblar la espalda"],
+  pressBotellas:["H B","Abdomen firme, empuja hacia arriba","Arquear la espalda"],
+  toqueHombro:["A H","Pies separados para no mover la cadera","Balancear la cadera"],
+  toqueHombroRod:["A H","Toque lento y controlado","Balancear la cadera"],
+  superman:["E G","Mira al piso, cuello largo","Levantar la cabeza hacia atrás"],
+  crunch:["A","Sube con el abdomen, mirada al techo","Jalar el cuello con las manos"],
+  bici:["A","Gira el torso, no solo el codo","Ir rápido sin control"],
+  elevPiernas:["A","Espalda baja pegada al piso","Arquear la espalda al bajar"],
+  talones:["A","Espalda baja pegada al piso","Dejar caer la pierna"],
+  planchaLat:["A","Cadera alta en línea con el cuerpo","Dejar caer la cadera"],
+  planchaLatRod:["A","Cadera alta, codo bajo el hombro","Dejar caer la cadera"],
+  deadbug:["A","Espalda pegada al piso todo el tiempo","Despegar la espalda baja"],
+  skater:["C Q G","Aterriza flexionando la rodilla","Caer con la pierna rígida"],
+  toquesLat:["C Q","Pasos amplios y ritmo constante","Arrastrar los pies"],
+  boxeo:["C H A","Gira la cadera en cada golpe","Estirar el codo de golpe"],
+  bisagra:["I G","Cadera atrás, espalda recta","Redondear la espalda"],
+  abduccion:["G","Sube la pierna sin inclinar el cuerpo","Girar la punta del pie hacia arriba"],
+  caminata:["C","Paso ligero, brazos activos","Mirar el celular al caminar"],
+  circHip:["M","Círculos amplios y lentos","Mover los hombros"],
+  balPierna:["M I","Balanceo suave, sin forzar","Arquear la espalda"],
+  rotTronco:["M E","Pies fijos, gira el torso","Girar con brusquedad"],
+  tobillos:["M P","Círculos completos en ambos sentidos","Apurarte"],
+  cuello:["M H","Movimientos lentos","Girar el cuello con fuerza"],
+  gato:["M E","Coordina con la respiración","Forzar la espalda"],
+  nino:["M E","Respira profundo y suelta","Rebotar"],
+  isquio:["M I","Inclínate desde la cadera","Redondear la espalda"],
+  cuadri:["M Q","Rodillas juntas, cadera adelante","Jalar el pie con fuerza"],
+  cadera:["M","Empuja la cadera hacia adelante","Arquear la espalda baja"],
+  torsion:["M E","Hombros pegados al piso","Forzar el giro"],
+  estPecho:["M Pe","Gira el cuerpo despacio","Forzar el hombro"],
+  estTriceps:["M B","Empuja el codo suave","Encorvar el cuello"],
+  estHombro:["M H","Hombro abajo y relajado","Subir el hombro a la oreja"],
+  estPantorrilla:["M P","Talón de atrás pegado al piso","Doblar la rodilla de atrás"],
+  cobra:["M A","Hombros lejos de las orejas","Forzar la espalda baja"],
+  fig4:["M G","Acerca las piernas suave","Levantar la cabeza"]
+};
+const musDe=k=>(GUIA[k]?GUIA[k][0].split(" "):[]);
+
+/* ---------- figura ---------- */
+function puntos(f,fr){
+  const hip=[f.x,60];const n=pol(hip,f.t,LEN.tor);const h=pol(n,f.cab!=null?f.cab:f.t,LEN.cab);
+  const d=[Math.sin(f.t*Math.PI/180),Math.cos(f.t*Math.PI/180)],pp=[-d[1],d[0]];
+  const off=(p,s)=>[p[0]+pp[0]*s,p[1]+pp[1]*s];
+  const s1=fr?off(n,7):n,s2=fr?off(n,-7):n,c1=fr?off(hip,4):hip,c2=fr?off(hip,-4):hip;
+  const e1=pol(s1,f.a1[0],LEN.brazo),m1=pol(e1,f.a1[1],LEN.ante),e2=pol(s2,f.a2[0],LEN.brazo),m2=pol(e2,f.a2[1],LEN.ante);
+  const k1=pol(c1,f.l1[0],LEN.muslo),p1=pol(k1,f.l1[1],LEN.pierna),k2=pol(c2,f.l2[0],LEN.muslo),p2=pol(k2,f.l2[1],LEN.pierna);
+  const P={hip,n,h,s1,s2,c1,c2,e1,m1,e2,m2,k1,p1,k2,p2};
+  let my=-1e9;for(const k in P){const y=P[k][1]+(k==="h"?8:0)+(k==="p1"||k==="p2"?2:0);if(y>my)my=y;}
+  const dy=108-my-f.up;for(const k in P)P[k]=[P[k][0],P[k][1]+dy];
+  P.t=f.t;P.l1=f.l1;P.l2=f.l2;P.cab=f.cab!=null?f.cab:f.t;
+  return P;
+}
+const fx=v=>v.toFixed(1);
+function figSVG(P,k,o={}){
+  const fr=FRENTE.has(k),mus=o.ghost?[]:musDe(k);
+  const piel=o.ghost?"#c6ff3d":"#e9ecef",atr=o.ghost?"#c6ff3d":"#5d6572",hi="#ff8a3d",hiA="#b8642e";
+  const w=o.ghost?.6:1;
+  const L=(a,b,wd,c,op)=>`<line x1="${fx(a[0])}" y1="${fx(a[1])}" x2="${fx(b[0])}" y2="${fx(b[1])}" stroke="${c}" stroke-width="${wd*w}" stroke-linecap="round"${op?` opacity="${op}"`:""}/>`;
+  const C=(p,r,c)=>`<circle cx="${fx(p[0])}" cy="${fx(p[1])}" r="${r*w}" fill="${c}"/>`;
+  const has=m=>mus.includes(m);
+  const pie=(k2,p,l,c)=>{const a=(l[1]+(fr?0:90));const q=pol(p,fr?l[1]:a,fr?0.01:6);return L(p,q,4.5,c);};
+  // torso como trapecio
+  const d=[P.n[0]-P.hip[0],P.n[1]-P.hip[1]],len=Math.hypot(d[0],d[1])||1,pp=[-d[1]/len,d[0]/len];
+  const wS=fr?9:6.5,wH=fr?6.5:5.5;
+  const q=[[P.n[0]+pp[0]*wS,P.n[1]+pp[1]*wS],[P.n[0]-pp[0]*wS,P.n[1]-pp[1]*wS],[P.hip[0]-pp[0]*wH,P.hip[1]-pp[1]*wH],[P.hip[0]+pp[0]*wH,P.hip[1]+pp[1]*wH]];
+  const mid=t=>[[lerp(q[0][0],q[3][0],t),lerp(q[0][1],q[3][1],t)],[lerp(q[1][0],q[2][0],t),lerp(q[1][1],q[2][1],t)]];
+  const poly=(pts,c,op)=>`<polygon points="${pts.map(p=>fx(p[0])+","+fx(p[1])).join(" ")}" fill="${c}" stroke="${c}" stroke-width="${2*w}" stroke-linejoin="round"${op?` opacity="${op}"`:""}/>`;
+  let s="";
+  const op=o.ghost?.28:null;
+  // extremidades traseras
+  s+=L(P.c2,P.k2,8,has("Q")?hiA:atr,op)+L(P.k2,P.p2,7,has("P")?hiA:atr,op)+(o.ghost?"":pie(0,P.p2,P.l2,atr));
+  s+=L(P.s2,P.e2,6.5,has("H")||has("B")?hiA:atr,op)+L(P.e2,P.m2,6,has("B")?hiA:atr,op)+(o.ghost?"":C(P.m2,3.4,atr));
+  // torso
+  s+=poly(q,o.ghost?piel:"#c9ced6",op);
+  if(!o.ghost){
+    if(has("Pe")||has("E")){const m=mid(.45);s+=poly([q[0],q[1],m[1],m[0]],has("E")&&!has("Pe")?hiA:hi,.95);}
+    if(has("A")){const a=mid(.42),b=mid(.95);s+=poly([a[0],a[1],b[1],b[0]],hi,.95);}
+    if(has("G"))s+=C(fr?P.hip:[P.hip[0]+pp[0]*-3,P.hip[1]+pp[1]*-3],fr?6:6.5,hi);
+    if(has("H"))s+=C(P.s1,5.2,hi);
+  }
+  // extremidades delanteras
+  s+=L(P.c1,P.k1,8.5,has("Q")?hi:has("I")&&!o.ghost?hiA:piel,op)+L(P.k1,P.p1,7.5,has("P")?hi:piel,op)+(o.ghost?"":pie(0,P.p1,P.l1,piel));
+  s+=L(P.s1,P.e1,6.5,has("B")||has("H")?hi:piel,op)+L(P.e1,P.m1,6,has("B")?hi:piel,op)+(o.ghost?"":C(P.m1,3.6,piel));
+  // cabeza + mirada
+  s+=`<circle cx="${fx(P.h[0])}" cy="${fx(P.h[1])}" r="${8*w}" fill="${piel}"${op?` opacity="${op}"`:""}/>`;
+  if(!o.ghost&&!fr){let fa=P.cab+(BOCA_ABAJO.has(k)?90:-90);const e=pol(P.h,fa,4.2);s+=C(e,1.8,"#0e1013");}
+  return s;
+}
+function flechaSVG(A,B){
+  // articulación que más se mueve entre la pose inicial y la final
+  let best=null,dm=0;["m1","m2","p1","p2","k1","k2","e1","h","hip","n"].forEach(k=>{const d=Math.hypot(B[k][0]-A[k][0],B[k][1]-A[k][1]);if(d>dm){dm=d;best=k;}});
+  if(!best||dm<6)return "";
+  const a=A[best],b=B[best],dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy),ux=dx/l,uy=dy/l;
+  const nx=-uy*9,ny=ux*9;const cx=(a[0]+b[0])/2+nx,cy=(a[1]+b[1])/2+ny;
+  const p0=[a[0]+ux*4+nx*.5,a[1]+uy*4+ny*.5],p1=[b[0]-ux*4+nx*.5,b[1]-uy*4+ny*.5];
+  const head=(p,dir)=>{const ang=Math.atan2(dir[1],dir[0]);const h1=[p[0]-6*Math.cos(ang-.5),p[1]-6*Math.sin(ang-.5)],h2=[p[0]-6*Math.cos(ang+.5),p[1]-6*Math.sin(ang+.5)];
+    return `<polyline points="${fx(h1[0])},${fx(h1[1])} ${fx(p[0])},${fx(p[1])} ${fx(h2[0])},${fx(h2[1])}" fill="none" stroke="#c6ff3d" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;};
+  return `<g opacity=".9"><path d="M${fx(p0[0])} ${fx(p0[1])} Q${fx(cx)} ${fx(cy)} ${fx(p1[0])} ${fx(p1[1])}" fill="none" stroke="#c6ff3d" stroke-width="2.4" stroke-dasharray="4 3" stroke-linecap="round"/>`+
+    head(p1,[p1[0]-cx,p1[1]-cy])+head(p0,[p0[0]-cx,p0[1]-cy])+`</g>`;
+}
+function poseMeta(k){const D=DEMOS[k],fr=FRENTE.has(k),A=puntos(D.f[0],fr);let bi=0,dm=-1;
+  D.f.forEach((f,i)=>{if(!i)return;const P=puntos(f,fr);let d=0;["m1","m2","p1","p2","k1","k2","h"].forEach(j=>d+=Math.hypot(P[j][0]-A[j][0],P[j][1]-A[j][1]));if(d>dm){dm=d;bi=i;}});
+  return {A,B:puntos(D.f[bi],fr)};}
+const cacheMeta={};
+function demoSVG(k,size,opt={}){
   const D=DEMOS[k]; if(!D) return "";
-  const id="dm"+Math.random().toString(36).slice(2,8);
-  return `<svg class="demo" data-k="${k}" id="${id}" width="${size}" height="${size}" viewBox="0 -8 120 124">${propSVG(D.p)}<line x1="8" y1="110" x2="112" y2="110" stroke="#2a2f37" stroke-width="2"/><g class="fig"></g></svg>`;
+  const M=cacheMeta[k]||(cacheMeta[k]=poseMeta(k));
+  const extra=opt.big?`${figSVG(M.B,k,{ghost:true})}${flechaSVG(M.A,M.B)}`:(size>=100?flechaSVG(M.A,M.B):"");
+  return `<svg class="demo" data-k="${k}" width="${size}" height="${size}" viewBox="0 -8 120 124" style="cursor:zoom-in">${propSVG(D.p)}<line x1="6" y1="110" x2="114" y2="110" stroke="#2a2f37" stroke-width="2"/>${extra}<g class="fig"></g></svg>`;
 }
-function dibujaFig(g,P){
-  const L=(a,b,w,c)=>`<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="${c}" stroke-width="${w}" stroke-linecap="round"/>`;
-  const atr="#6b7380",del="#f1f3f5",ac="#c6ff3d";
-  g.innerHTML=L(P.n,P.e2,5,atr)+L(P.e2,P.m2,5,atr)+L(P.hip,P.k2,6,atr)+L(P.k2,P.p2,6,atr)+
-    L(P.hip,P.n,7,ac)+L(P.hip,P.k1,6,del)+L(P.k1,P.p1,6,del)+L(P.n,P.e1,5,del)+L(P.e1,P.m1,5,del)+
-    `<circle cx="${P.h[0].toFixed(1)}" cy="${P.h[1].toFixed(1)}" r="7" fill="${del}"/>`;
-}
+function dibujaFig(g,P,k){g.innerHTML=figSVG(P,k||g.closest("svg").dataset.k);}
 function poseEn(k,ms){const D=DEMOS[k],n=D.f.length,T=D.d*n/2,ph=(ms%T)/T*n,i=Math.floor(ph),t=ph-i;
-  const e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;return puntos(mezcla(D.f[i],D.f[(i+1)%n],e));}
-let demoRAF=null;
+  const e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;return puntos(mezcla(D.f[i],D.f[(i+1)%n],e),FRENTE.has(k));}
+let demoRAF=null,velZoom=1,tZoom=0,tPrev=performance.now();
 function animarDemos(){
-  const now=performance.now();
-  document.querySelectorAll("svg.demo").forEach(s=>{const g=s.querySelector(".fig");if(g&&s.getClientRects().length)dibujaFig(g,poseEn(s.dataset.k,now));});
+  const now=performance.now();tZoom+=(now-tPrev)*velZoom;tPrev=now;
+  document.querySelectorAll("svg.demo").forEach(s=>{const g=s.querySelector(".fig");if(g&&s.getClientRects().length){const k=s.dataset.k;dibujaFig(g,poseEn(k,s.dataset.z?tZoom:now),k);}});
   demoRAF=requestAnimationFrame(animarDemos);
 }
+/* ---------- pantalla completa ---------- */
+let zoomPausa=false;
+function abrirZoom(k){
+  const G=GUIA[k]||["","",""],e=EJ[k];
+  const mus=musDe(k).map(m=>MUS_N[m]).filter(Boolean);
+  if(PL&&PL.run){PL.run=false;icoPlay(false);zoomPausa=true;}
+  velZoom=1;
+  $("zoom").innerHTML=`<button class="sheetx" style="position:absolute;right:14px;top:calc(14px + env(safe-area-inset-top))" onclick="cerrarZoom()">✕</button>
+   <div class="zin">
+    <div class="phase" style="color:var(--acc)">${FRENTE.has(k)?"Vista de frente":"Vista de lado"}</div>
+    <div class="pname">${e.n}</div>
+    <div class="zfig">${demoSVG(k,300,{big:true}).replace('class="demo"','class="demo" data-z="1"')}</div>
+    <div class="row" style="justify-content:center;gap:6px;flex-wrap:wrap;margin:4px 0 12px">${mus.map(m=>`<span class="pill" style="border-color:#ff8a3d;color:#ffb27d">● ${m}</span>`).join("")}</div>
+    <div class="seg" id="segVel" style="max-width:260px;margin:0 auto"><button class="on" data-v="1">Normal</button><button data-v="0.4">Cámara lenta</button></div>
+    <div class="card" style="margin-top:14px;text-align:left">
+      <div style="font-size:15px;margin-bottom:8px">${e.t}</div>
+      ${G[1]?`<div class="tip ok">✅ <b>Clave:</b> ${G[1]}</div>`:""}
+      ${G[2]?`<div class="tip no">❌ <b>Evita:</b> ${G[2]}</div>`:""}
+    </div>
+    <p class="sub" style="margin-top:10px;font-size:12px">La figura verde clara es la posición a la que llegas. En naranja, los músculos que trabajas.</p>
+   </div>`;
+  $("zoom").classList.add("on");
+  $("segVel").querySelectorAll("button").forEach(b=>b.onclick=()=>{velZoom=+b.dataset.v;$("segVel").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));});
+  try{history.pushState({zoom:1},"");zoomHist=true;}catch(err){zoomHist=false;}
+}
+let zoomHist=false;
+function cierraZoomUI(){$("zoom").classList.remove("on");$("zoom").innerHTML="";if(zoomPausa&&PL){PL.run=true;icoPlay(true);}zoomPausa=false;}
+window.cerrarZoom=()=>{if(!$("zoom").classList.contains("on"))return;cierraZoomUI();if(zoomHist){zoomHist=false;ignorarPop=true;try{history.back();}catch(e){ignorarPop=false;}}};
+window.addEventListener("popstate",()=>{if($("zoom").classList.contains("on")){zoomHist=false;cierraZoomUI();}});
+document.addEventListener("click",e=>{const s=e.target.closest&&e.target.closest("svg.demo");if(s&&!s.dataset.z){e.stopPropagation();abrirZoom(s.dataset.k);}},true);
 
 $("inNombre").value=S.nombre||"";$("inNombre").onchange=e=>{S.nombre=e.target.value.trim().slice(0,30);save();renderHoy();};
 renderAll();renderFotos();animarDemos();
