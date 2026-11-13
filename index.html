@@ -190,7 +190,7 @@ nav button.on{color:var(--acc)}
     <h1>Comida</h1>
     <p class="sub" style="margin-top:6px">Foto de tu plato + lo que comiste. Sin dietas raras, sin culpa.</p>
     <div id="comidaBox"></div>
-    <p class="sub" style="margin-top:12px;font-size:12px">Calorías aproximadas por porción casera. <a href="#" onclick="perfil();return false" style="color:var(--acc)">Editar mi perfil</a></p>
+    <p class="sub" style="margin-top:12px;font-size:12px">Calorías aproximadas por porción casera. <a href="#" onclick="perfil();return false" style="color:var(--acc)">Editar mi perfil</a> · <a href="#" onclick="iaConfig();return false" style="color:var(--acc)">✨ IA de fotos</a></p>
   </section>
 
   <!-- PROGRESO -->
@@ -230,6 +230,7 @@ nav button.on{color:var(--acc)}
     <div class="card"><ul class="list" id="historial"></ul></div>
     <h2>Ajustes</h2>
     <div class="card">
+      <div id="ajIA" style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--line)"></div>
       <div class="sub" style="margin-bottom:6px">Tu nombre</div>
       <input id="inNombre" placeholder="¿Cómo te llamas?" style="margin-bottom:14px">
       <div class="sub" style="margin-bottom:6px">Meta de días por semana</div>
@@ -547,7 +548,7 @@ function renderChart(){
   if(S.meta) t+=` · Faltan ${Math.max(0,+(L.kg-S.meta).toFixed(1))} kg`;
   $("pesoResumen").textContent=t;
 }
-function renderAll(){renderHoy();renderRutinas();renderProgreso();renderComida();renderBalance();}
+function renderAll(){renderHoy();renderRutinas();renderProgreso();renderComida();renderBalance();renderAjustesIA();}
 
 /* ===================== ACCIONES ===================== */
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
@@ -1038,8 +1039,9 @@ window.nuevaComida=(antojo)=>{
   NC={antojo,tipo:antojo?"Gusto":tipoPorHora(),items:[],foto:null,x:1};
   $("sheet").innerHTML=`<h2 style="margin-top:0">${antojo?"🍰 Me di un gusto":"Agregar comida"}</h2>
    ${antojo?`<div class="tip ok" style="margin-bottom:10px">Sube la foto sin miedo. Registrarlo es parte del proceso, no un fracaso. Lo que cuenta es tu semana, no un plato.</div>`:""}
-   <label class="fotoPick" id="ncFoto"><input type="file" accept="image/*" capture="environment" hidden id="ncIn"><span>📷 Foto del plato <small class="sub">(opcional)</small></span></label>
+   <label class="fotoPick" id="ncFoto"><input type="file" accept="image/*" capture="environment" hidden id="ncIn"><span>📷 Foto del plato <small class="sub">${iaOk()?"(la IA la analiza)":"(opcional)"}</small></span></label>
    ${antojo?"":`<div class="seg" id="ncTipo" style="margin-top:10px">${["Desayuno","Almuerzo","Snack","Cena"].map(t=>`<button data-v="${t}" class="${t===NC.tipo?"on":""}">${t}</button>`).join("")}</div>`}
+   <div id="ncIA" style="margin-top:10px"></div>
    <div id="ncSel" style="margin-top:10px"></div>
    <div class="sub" style="margin:12px 0 6px">Porción</div>
    <div class="seg" id="ncPorc">${PORC.map(p=>`<button data-v="${p[0]}" class="${p[0]===1?"on":""}">${p[1]} ${p[0]===1?"normal":""}</button>`).join("")}</div>
@@ -1049,7 +1051,8 @@ window.nuevaComida=(antojo)=>{
     <div class="row" style="margin-top:8px;gap:8px"><input id="ncNom" placeholder="Nombre"><input id="ncKc" type="number" inputmode="numeric" placeholder="kcal" style="max-width:100px"><button class="btn sm" id="ncAdd">+</button></div></details>
    <div class="sfoot"><button class="btn" id="ncOk">Guardar · <span id="ncTot">0</span> kcal</button></div>`;
   abrir();
-  $("ncIn").onchange=async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;try{NC.foto=await achicar(f);$("ncFoto").innerHTML=`<img src="${URL.createObjectURL(NC.foto)}"><input type="file" accept="image/*" capture="environment" hidden id="ncIn">`;}catch(err){toast("No se pudo leer la foto");}};
+  const onFoto=async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;try{NC.foto=await achicar(f);$("ncFoto").innerHTML=`<img src="${URL.createObjectURL(NC.foto)}"><input type="file" accept="image/*" capture="environment" hidden id="ncIn">`;$("ncIn").onchange=onFoto;pintaIA();if(iaOk())analizaNC();}catch(err){toast("No se pudo leer la foto");}};
+  $("ncIn").onchange=onFoto;pintaIA();
   if($("ncTipo"))$("ncTipo").querySelectorAll("button").forEach(b=>b.onclick=()=>{NC.tipo=b.dataset.v;$("ncTipo").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));});
   $("ncPorc").querySelectorAll("button").forEach(b=>b.onclick=()=>{NC.x=+b.dataset.v;$("ncPorc").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));});
   $("ncBus").oninput=listaComidas;listaComidas();pintaSel();
@@ -1057,16 +1060,26 @@ window.nuevaComida=(antojo)=>{
     NC.items.push({n,k,x:NC.x});$("ncNom").value="";$("ncKc").value="";pintaSel();};
   $("ncOk").onclick=guardaComida;
 };
+function pintaIA(st){const el=$("ncIA");if(!el)return;
+  if(!iaOk()){el.innerHTML=`<button class="pill" style="width:100%;padding:10px" onclick="iaConfig()">✨ Activa el análisis de fotos con IA (gratis)</button>`;return;}
+  if(!NC.foto){el.innerHTML=`<div class="sub" style="text-align:center">✨ Toma la foto y la IA te dice qué hay y cuántas kcal tiene</div>`;return;}
+  if(st==="cargando"){el.innerHTML=`<div class="tip ok" style="text-align:center">✨ Analizando tu plato…</div>`;return;}
+  if(st&&st.err){el.innerHTML=`<div class="tip no">${st.err}</div><button class="pill" style="width:100%;padding:10px;margin-top:6px" onclick="analizaNC()">✨ Reintentar</button>`;return;}
+  if(st&&st.ok){const o=st.ok;el.innerHTML=o.items.length?`<div class="tip ok">✨ La IA detectó ${o.items.length} alimento${o.items.length>1?"s":""} · confianza ${o.confianza||"media"}. Revisa y corrige si hace falta (toca ✕ para quitar).${o.nota?`<br><small>${o.nota}</small>`:""}</div>`:`<div class="tip no">No reconocí comida en la foto. Elige de la lista.</div>`;return;}
+  el.innerHTML=`<button class="btn sm" style="width:100%" onclick="analizaNC()">✨ Analizar foto con IA</button>`;}
+window.analizaNC=async()=>{if(!NC||!NC.foto)return;pintaIA("cargando");
+  try{const o=await iaAnalizar(NC.foto);NC.items=NC.items.filter(i=>!i.ia).concat(o.items);NC.ia=o.confianza||"media";pintaSel();pintaIA({ok:o});}
+  catch(e){pintaIA({err:iaError(e)});}};
 function listaComidas(){const q=($("ncBus").value||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
   $("ncLista").innerHTML=COMIDAS.map(([g,items])=>{const it=items.filter(([n])=>!q||n.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").includes(q));
     return it.length?`<div class="sub" style="margin:10px 0 4px;font-weight:700">${g}</div>`+it.map(([n,k])=>`<button class="citem" data-n="${n}" data-k="${k}"><span>${n}</span><span class="sub">${k} kcal</span></button>`).join(""):"";}).join("")||`<div class="empty">No encontré "${q}". Agrégalo a mano abajo.</div>`;
   $("ncLista").querySelectorAll(".citem").forEach(b=>b.onclick=()=>{NC.items.push({n:b.dataset.n,k:+b.dataset.k,x:NC.x});pintaSel();toast("Agregado");});}
 function pintaSel(){const t=NC.items.reduce((a,i)=>a+i.k*i.x,0);$("ncTot").textContent=fmt(t);
-  $("ncSel").innerHTML=NC.items.length?NC.items.map((i,j)=>`<span class="pill on" style="margin:0 6px 6px 0;display:inline-flex;gap:6px;align-items:center">${i.x!==1?PORC.find(p=>p[0]===i.x)[1]+" ":""}${i.n} · ${fmt(i.k*i.x)}<b onclick="NC.items.splice(${j},1);pintaSel()" style="cursor:pointer">✕</b></span>`).join(""):`<div class="sub">Elige uno o más alimentos de la lista.</div>`;}
+  $("ncSel").innerHTML=NC.items.length?NC.items.map((i,j)=>`<span class="pill on" style="margin:0 6px 6px 0;display:inline-flex;gap:6px;align-items:center">${i.ia?"✨ ":""}${i.x!==1?PORC.find(p=>p[0]===i.x)[1]+" ":""}${i.n} · ${fmt(i.k*i.x)}<b onclick="NC.items.splice(${j},1);pintaSel()" style="cursor:pointer">✕</b></span>`).join(""):`<div class="sub">Elige uno o más alimentos de la lista.</div>`;}
 async function guardaComida(){
   if(!NC.items.length)return toast("Agrega al menos un alimento");
   const id="c"+Date.now(),kcal=Math.round(NC.items.reduce((a,i)=>a+i.k*i.x,0));
-  const c={id,f:diaCom,t:Date.now(),tipo:NC.tipo,items:NC.items,kcal,antojo:NC.antojo,foto:!!NC.foto};
+  const c={id,f:diaCom,t:Date.now(),tipo:NC.tipo,items:NC.items.map(i=>({n:i.n,k:i.k,x:i.x,...(i.ia?{ia:1}:{})})),kcal,antojo:NC.antojo,foto:!!NC.foto,...(NC.ia?{ia:NC.ia}:{})};
   if(NC.foto)await fotoCPut(id,NC.foto);
   (S.comidas=S.comidas||[]).push(c);save();renderAll();
   if(NC.antojo){
@@ -1120,6 +1133,78 @@ function renderBalance(){
    <p class="sub" style="margin-top:4px;font-size:12px">El día de hoy se suma al balance cuando termina.</p><p class="sub" style="margin-top:8px;font-size:13px">${reg.length<4?"Registra tus comidas al menos 4 días para que el cálculo sea confiable.":
      (real!=null?`Tu báscula dice ${real<=0?"−":"+"}${Math.abs(real).toFixed(1)} kg esta semana. `:"")+(tot<=0?"Vas en la dirección correcta. 💪":"Esta semana estuvo por encima. Tranquilo: la próxima semana es nueva.")}</p>`;
 }
+
+/* ===================== IA: ANÁLISIS DE FOTOS (clave propia de Gemini) ===================== */
+const IA_LS="repreal-gemini";
+const iaGet=()=>{try{return JSON.parse(localStorage.getItem(IA_LS)||"{}");}catch(e){return {};}};
+const iaSet=o=>{try{localStorage.setItem(IA_LS,JSON.stringify(o));}catch(e){}};
+const iaOk=()=>!!iaGet().key;
+const IA_PREF=["gemini-flash-lite-latest","gemini-flash-latest","gemini-3.5-flash-lite","gemini-3.1-flash-lite","gemini-3.6-flash","gemini-3.8-flash","gemini-2.5-flash-lite","gemini-2.5-flash"];
+const IA_BASE="https://generativelanguage.googleapis.com/v1beta";
+async function iaModelos(key){
+  const r=await fetch(IA_BASE+"/models?pageSize=200",{headers:{"x-goog-api-key":key}});
+  if(!r.ok){const e=new Error("http");e.status=r.status;throw e;}
+  const j=await r.json();
+  const ok=(j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>m.name.replace("models/",""))
+    .filter(n=>/flash/.test(n)&&!/(image|tts|audio|live|embedding|thinking-exp)/.test(n));
+  const orden=[...IA_PREF.filter(p=>ok.includes(p)),...ok.filter(n=>!IA_PREF.includes(n)&&/lite/.test(n)),...ok.filter(n=>!IA_PREF.includes(n)&&!/lite/.test(n))];
+  return orden;
+}
+const aB64=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.onerror=rej;r.readAsDataURL(b);});
+const IA_PROMPT=`Eres nutricionista en Perú. Mira la foto de comida y estima lo que hay en el plato.
+Usa nombres de comida peruana cuando corresponda (lomo saltado, ají de gallina, seco, ceviche, chaufa, menestra, arroz, plátano, yuca, chicha morada, etc.).
+Estima la porción que se ve (porción casera peruana) y las kcal de cada componente para ESA porción.
+Si hay bebidas visibles, inclúyelas. Si la foto no es comida, devuelve items vacío.
+Responde SOLO JSON con esta forma exacta:
+{"items":[{"n":"nombre corto","porcion":"ej. 1 plato, 1 taza, 2 presas","kcal":numero}],"confianza":"alta|media|baja","nota":"una frase corta en español, opcional"}`;
+async function iaAnalizar(blob){
+  const cfg=iaGet();if(!cfg.key)throw Object.assign(new Error("sin clave"),{status:0});
+  let modelos=cfg.modelo?[cfg.modelo]:[];
+  if(!modelos.length){modelos=await iaModelos(cfg.key);}
+  if(!modelos.length)throw Object.assign(new Error("sin modelos"),{status:404});
+  const data=await aB64(blob);let ultimo=null;
+  for(const m of modelos.slice(0,4)){
+    try{
+      const r=await fetch(`${IA_BASE}/models/${m}:generateContent`,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":cfg.key},
+        body:JSON.stringify({contents:[{parts:[{text:IA_PROMPT},{inline_data:{mime_type:blob.type||"image/jpeg",data}}]}],generationConfig:{responseMimeType:"application/json",temperature:0.2}})});
+      if(!r.ok){ultimo=Object.assign(new Error("http"),{status:r.status});if(r.status===400||r.status===403)throw ultimo;continue;}
+      const j=await r.json();
+      const txt=((j.candidates||[])[0]?.content?.parts||[]).map(p=>p.text||"").join("");
+      const o=JSON.parse(txt.replace(/^```json|```$/g,"").trim());
+      if(cfg.modelo!==m)iaSet({...cfg,modelo:m});
+      o.items=(o.items||[]).filter(i=>i&&i.n&&isFinite(+i.kcal)).map(i=>({n:String(i.n).slice(0,60)+(i.porcion?` (${String(i.porcion).slice(0,30)})`:""),k:Math.max(0,Math.min(3000,Math.round(+i.kcal))),x:1,ia:true}));
+      return o;
+    }catch(e){ultimo=e;if(e.status===400||e.status===403)throw e;}
+  }
+  if(cfg.modelo){iaSet({...cfg,modelo:null});}
+  throw ultimo||new Error("falló");
+}
+function iaError(e){const s=e&&e.status;
+  if(s===400||s===403)return "Tu clave no es válida o no tiene permiso. Revísala en Ajustes.";
+  if(s===429)return "Llegaste al límite gratis de hoy de Google. Usa la lista de platos o intenta más tarde.";
+  if(s===404)return "No encontré un modelo disponible para tu clave. Intenta de nuevo más tarde.";
+  if(e instanceof SyntaxError)return "La IA respondió algo raro. Intenta otra foto o usa la lista.";
+  return "No pude conectar con la IA. Revisa tu internet.";}
+
+window.iaConfig=()=>{const c=iaGet();
+  $("sheet").innerHTML=`<h2 style="margin-top:0">✨ Analizar fotos con IA</h2>
+   <div class="sub" style="font-size:14px;line-height:1.5">Gratis con tu propia clave de Google Gemini. Toma 2 minutos y solo se hace una vez.</div>
+   <div class="card" style="margin-top:12px;font-size:14px;line-height:1.6">
+    <b>1.</b> Abre <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--acc)">aistudio.google.com/apikey</a> y entra con tu Gmail.<br>
+    <b>2.</b> Toca <b>Create API key</b> y cópiala.<br><b>3.</b> Pégala aquí abajo.</div>
+   <input id="iaKey" type="password" autocomplete="off" placeholder="Pega tu clave (empieza con AIza…)" style="margin-top:12px" value="${c.key?c.key.replace(/"/g,""):""}">
+   <div class="row" style="margin-top:10px;gap:8px"><button class="btn" style="flex:2" id="iaProbar">Guardar y probar</button>${c.key?`<button class="btn ghost" style="flex:1" id="iaQuitar">Quitar</button>`:""}</div>
+   <div id="iaEst" class="sub" style="margin-top:10px"></div>
+   <p class="sub" style="margin-top:12px;font-size:12px">🔒 Tu clave se guarda solo en este celular. Al analizar, la foto se envía a Google. Google cambia sus límites gratis de vez en cuando; si se acaban, la lista de platos sigue funcionando.</p>`;
+  abrir();
+  $("iaProbar").onclick=async()=>{const k=$("iaKey").value.trim();if(!/^[A-Za-z0-9_\-]{20,}$/.test(k))return toast("Esa clave no parece válida");
+    $("iaEst").textContent="Probando tu clave…";
+    try{const ms=await iaModelos(k);if(!ms.length)throw Object.assign(new Error(),{status:404});
+      iaSet({key:k,modelo:null});$("iaEst").innerHTML=`<span style="color:var(--acc)">✓ Listo. Ya puedes analizar fotos de tus comidas.</span>`;renderComida();renderAjustesIA();}
+    catch(e){$("iaEst").innerHTML=`<span style="color:#ffb27d">${iaError(e)}</span>`;}};
+  if($("iaQuitar"))$("iaQuitar").onclick=()=>{iaSet({});cerrar();toast("Clave quitada");renderComida();renderAjustesIA();};
+};
+function renderAjustesIA(){const el=$("ajIA");if(!el)return;el.innerHTML=`<div class="sw"><div><b>✨ Análisis de fotos con IA</b><div class="sub" style="margin-top:3px">${iaOk()?"Activo con tu clave de Google":"Desactivado · gratis con tu clave de Google"}</div></div><button class="btn sm ${iaOk()?"ghost":""}" onclick="iaConfig()">${iaOk()?"Editar":"Activar"}</button></div>`;}
 
 /* ===================== ANIMACIONES GUÍA ===================== */
 /* Ángulos absolutos: 0 = hacia abajo, 90 = adelante (derecha), 180 = arriba, -90 = atrás (izquierda) */
