@@ -86,7 +86,11 @@ nav button.on{color:var(--acc)}
 .bar i{display:block;height:100%;background:var(--acc);width:0;transition:width .3s}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:60;display:none;align-items:flex-end;justify-content:center}
 .modal.on{display:flex}
-.sheet{background:var(--card);border-radius:22px 22px 0 0;padding:22px 18px calc(22px + env(safe-area-inset-bottom));width:100%;max-width:520px;max-height:90vh;overflow:auto}
+.sheet{background:var(--card);border-radius:22px 22px 0 0;padding:0 18px calc(22px + env(safe-area-inset-bottom));width:100%;max-width:520px;max-height:88vh;overflow:auto;overscroll-behavior:contain}
+.shead{position:sticky;top:0;z-index:2;background:var(--card);display:flex;justify-content:center;align-items:center;height:48px;margin:0 -18px 6px;border-radius:22px 22px 0 0}
+.grab{width:42px;height:5px;border-radius:9px;background:var(--line)}
+.sheetx{position:absolute;right:12px;top:7px;width:36px;height:36px;border-radius:50%;background:var(--card2);border:1px solid var(--line);font-size:16px;color:var(--tx)}
+.sfoot{position:sticky;bottom:calc(-22px - env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--card) 22%);margin:0 -18px;padding:18px 18px 4px}
 .toast{position:fixed;left:50%;top:16px;transform:translateX(-50%);background:var(--acc);color:#111;padding:10px 16px;border-radius:12px;font-weight:700;z-index:99;display:none}
 .sync{font-size:11px;color:var(--mut)}
 .chart{width:100%;height:170px}
@@ -217,7 +221,7 @@ nav button.on{color:var(--acc)}
 </div></nav>
 
 <!-- detalle rutina -->
-<div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+<div class="modal" id="modal"><div class="sheet" id="sheetBox"><div class="shead"><span class="grab"></span><button class="sheetx" onclick="cerrar()" aria-label="Cerrar">✕</button></div><div id="sheet"></div></div></div>
 
 <!-- reproductor -->
 <div id="player">
@@ -530,8 +534,15 @@ $("btnMeta").onclick=()=>{const v=parseFloat($("inMeta").value);if(!(v>30&&v<250
   S.meta=+v.toFixed(1);$("inMeta").value="";save();renderAll();toast("Meta guardada");};
 window.borrarSes=t=>{const s=$("sheet");s.innerHTML=`<h2 style="margin-top:0">¿Borrar esta sesión?</h2><p class="sub">No se puede deshacer.</p>
   <button class="btn" style="margin-top:16px;background:var(--acc2)" id="okB">Sí, borrar</button><button class="btn ghost" style="margin-top:8px" onclick="cerrar()">Cancelar</button>`;
-  $("modal").classList.add("on");$("okB").onclick=()=>{S.sesiones=S.sesiones.filter(x=>x.t!==t);save();renderAll();cerrar();};};
-window.cerrar=()=>$("modal").classList.remove("on");
+  abrir();$("okB").onclick=()=>{S.sesiones=S.sesiones.filter(x=>x.t!==t);save();renderAll();cerrar();};};
+let modalHist=false,ignorarPop=false;
+function abrir(){const m=$("modal");if(!m.classList.contains("on")){$("sheetBox").scrollTop=0;m.classList.add("on");try{history.pushState({modal:1},"");modalHist=true;}catch(e){modalHist=false;}}}
+function cierraUI(){$("modal").classList.remove("on");}
+window.cerrar=()=>{if(!$("modal").classList.contains("on"))return;cierraUI();if(modalHist){modalHist=false;ignorarPop=true;try{history.back();}catch(e){ignorarPop=false;}}};
+window.addEventListener("popstate",()=>{if(ignorarPop){ignorarPop=false;return;}if($("modal").classList.contains("on")){modalHist=false;cierraUI();}});
+/* deslizar hacia abajo desde la cabecera para cerrar */
+(()=>{let y0=null;const h=()=>document.querySelector(".shead");document.addEventListener("touchstart",e=>{if(h()&&h().contains(e.target))y0=e.touches[0].clientY;},{passive:true});
+ document.addEventListener("touchend",e=>{if(y0!=null&&e.changedTouches[0].clientY-y0>60)cerrar();y0=null;},{passive:true});})();
 $("modal").onclick=e=>{if(e.target.id==="modal")cerrar();};
 window.detalle=id=>{const r=RUT.find(x=>x.id===id),c=cfg(r);
   $("sheet").innerHTML=`<div class="row"><div class="ic" style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:${r.c};color:#111;font-family:'Barlow Condensed';font-weight:800">${r.ab}</div><div><h2 style="margin:0">${nomR(r)}</h2><div class="sub">${r.d}</div></div></div>
@@ -540,12 +551,12 @@ window.detalle=id=>{const r=RUT.find(x=>x.id===id),c=cfg(r);
   ${exs(r).map((k,i)=>`<div class="ex">${demoSVG(k,64)}<div style="flex:1"><b>${EJ[k].n}</b><small>${EJ[k].t}</small></div><span class="pill ${usaCam(r,k)?"on":""}" style="align-self:flex-start">${usaCam(r,k)?metaReps(k)+" reps":c.w+" s"}</span></div>`).join("")}
   ${usaCal(r)?`<h3 style="margin:16px 0 4px;color:#9d8bff">Estiramiento final · ${Math.round(r.vc.length*T_VC/60*10)/10} min</h3>`+r.vc.map(k=>`<div class="ex">${demoSVG(k,56)}<div style="flex:1"><b>${EJ[k].n}</b><small>${EJ[k].t}</small></div><span class="pill" style="align-self:flex-start">${T_VC} s</span></div>`).join(""):""}
   ${S.cam&&!r.fijo?'<p class="sub" style="margin-top:10px">Los que dicen "reps" los cuenta la cámara. Los demás van por tiempo.</p>':""}
-  <div class="row" style="margin-top:14px;gap:8px">
+  <div class="sfoot"><div class="row" style="gap:8px">
     <button class="pill ${S.cam?"on":""}" style="flex:1;padding:10px" onclick="S.cam=!S.cam;save();renderAll();detalle('${r.id}')">📷 Contar reps</button>
     <button class="pill ${S.grabar?"on":""}" style="flex:1;padding:10px" onclick="S.grabar=!S.grabar;save();renderAll();detalle('${r.id}')">⏺ Grabar video</button>
   </div>
-  <button class="btn" style="margin-top:10px" onclick="cerrar();empezar('${r.id}')">▶ Empezar</button>`;
-  $("modal").classList.add("on");};
+  <div class="row" style="margin-top:10px;gap:8px"><button class="btn ghost" style="flex:1" onclick="cerrar()">Volver</button><button class="btn" style="flex:2" onclick="cerrar();empezar('${r.id}')">▶ Empezar</button></div></div>`;
+  abrir();};
 
 /* ===================== REPRODUCTOR ===================== */
 let PL=null, tick=null, actx=null, wake=null;
@@ -593,7 +604,7 @@ function avisoCam(e){
   else if(n==="NoSoportado") t="Aquí la cámara no está disponible. Abre la app desde <b>jimenez097y.github.io/repreal</b> en Chrome, Brave o Safari.";
   else t="No se pudo abrir la cámara ("+(n||"error")+").";
   $("sheet").innerHTML=`<h2 style="margin-top:0">📷 Cámara no disponible</h2><p class="sub" style="font-size:15px;line-height:1.5">${t}</p><p class="sub" style="margin-top:10px">Mientras tanto, la rutina sigue con temporizador.</p><button class="btn" style="margin-top:16px" onclick="cerrar()">Entendido</button>`;
-  $("modal").classList.add("on");
+  abrir();
 }
 function camOff(){cancelAnimationFrame(camLoop);camLoop=null;try{stream&&stream.getTracks().forEach(t=>t.stop());}catch(e){}stream=null;$("cam").classList.remove("on");}
 function camMsg(t){const m=$("camMsg");m.textContent=t;m.classList.toggle("on",!!t);}
@@ -699,7 +710,7 @@ $("pSalir").onclick=()=>{PL.run=false;icoPlay(false);
   <button class="btn" style="margin-top:16px" onclick="cerrar();fin(true)">Guardar lo que hice</button>
   <button class="btn ghost" style="margin-top:8px" onclick="cerrar();salir()">Salir sin guardar</button>
   <button class="btn ghost" style="margin-top:8px" onclick="cerrar();PL.run=true;icoPlay(true)">Seguir entrenando</button>`;
-  $("modal").classList.add("on");};
+  abrir();};
 window.salir=(conRec)=>{clearInterval(tick);camOff();PL=null;$("pRec").style.display="none";
   if(!conRec&&REC){try{REC.rec.state!=="inactive"&&REC.rec.stop();}catch(e){}REC=null;}try{wake&&wake.release();}catch(e){}$("player").classList.remove("on");icoPlay(true);};
 window.fin=parcial=>{clearInterval(tick);const P=PL,r=P.r;const seg=Math.round((Date.now()-P.ini)/1000);
@@ -722,7 +733,7 @@ window.fin=parcial=>{clearInterval(tick);const P=PL,r=P.r;const seg=Math.round((
   ${!pesoActual()?'<p class="sub" style="margin-top:6px">Tip: registra tu peso en Progreso para que las calorías sean más exactas.</p>':''}
   ${grabando?'<div id="recBox"><p class="sub" style="margin-top:10px">Preparando tu video…</p></div>':""}
   <button class="btn" style="margin-top:12px" onclick="cerrar()">Listo</button></div>`;
-  $("modal").classList.add("on");};
+  abrir();};
 
 /* ===================== PLAN / CAMINATA ===================== */
 window.cambiaSem=d=>{const w=Math.max(1,Math.min(4,semana()+d));const x=new Date();x.setDate(x.getDate()-(w-1)*7);S.inicio=hoyStr(x);save();renderAll();};
@@ -733,7 +744,7 @@ window.caminata=()=>{
   <input id="inCamMin" type="number" inputmode="numeric" placeholder="u otro: minutos" style="margin-top:10px">
   <input id="inPasos" type="number" inputmode="numeric" placeholder="Pasos (opcional, de tu iPhone)" style="margin-top:10px">
   <button class="btn" style="margin-top:16px" id="okCam">Guardar caminata</button>`;
-  $("modal").classList.add("on");
+  abrir();
   $("segCam").querySelectorAll("button").forEach(b=>b.onclick=()=>{$("segCam").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));$("inCamMin").value=b.dataset.m;});
   $("okCam").onclick=()=>{const m=parseInt($("inCamMin").value);if(!(m>0&&m<600))return toast("Pon los minutos");
     const kg=pesoActual()||75,ses={id:Date.now()+"",t:Date.now(),f:hoyStr(),rut:"caminata",seg:m*60,kcal:Math.round(3.5*kg*m/60)};
@@ -858,7 +869,7 @@ function verFoto(o){const url=URL.createObjectURL(o.blob);
   $("sheet").innerHTML=`<img src="${url}" style="width:100%;border-radius:14px">
   <div class="row" style="margin-top:10px"><button class="btn sm" style="flex:1" id="fShare">Compartir</button><button class="btn sm ghost" id="fDel">Borrar</button></div>
   <p class="sub" style="margin-top:8px;text-align:center">También puedes mantener presionada la foto para guardarla.</p>`;
-  $("modal").classList.add("on");
+  abrir();
   $("fShare").onclick=()=>compartir(o.blob,"repreal-progreso-"+o.f+".jpg","Mi progreso");
   $("fDel").onclick=async()=>{await fotoBorrar(o.id);cerrar();renderFotos();};}
 $("btnComparar").onclick=async()=>{const F=await fotosTodas();if(F.length<2)return toast("Necesitas al menos 2 fotos");
