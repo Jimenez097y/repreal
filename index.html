@@ -152,6 +152,7 @@ nav button.on{color:var(--acc)}
     <h2>Te toca hoy</h2>
     <div class="card hero" id="sugerida"></div>
     <div class="card rt" style="margin-top:10px" onclick="document.querySelector('nav button[data-v=comida]').click()" id="hoyComida"></div>
+    <div class="card rt" style="margin-top:10px;display:none;cursor:pointer" id="hoyAyuno" onclick="document.querySelector('nav button[data-v=comida]').click()"></div>
     <div class="card rt" style="margin-top:10px" id="hoyCama"></div>
     <div class="card rt" style="margin-top:10px" onclick="caminata()">
       <div id="demoCam"></div>
@@ -190,6 +191,7 @@ nav button.on{color:var(--acc)}
   <section class="view" id="v-comida">
     <h1>Comida</h1>
     <p class="sub" style="margin-top:6px">Foto de tu plato + lo que comiste. Sin dietas raras, sin culpa.</p>
+    <div id="ayunoBox" style="margin-top:14px"></div>
     <div id="comidaBox"></div>
     <p class="sub" style="margin-top:12px;font-size:12px">Calorías aproximadas por porción casera. <a href="#" onclick="perfil();return false" style="color:var(--acc)">Editar mi perfil</a> · <a href="#" onclick="iaConfig();return false" style="color:var(--acc)">✨ IA de fotos</a></p>
   </section>
@@ -561,7 +563,7 @@ function renderChart(){
   if(S.meta) t+=` · Faltan ${Math.max(0,+(L.kg-S.meta).toFixed(1))} kg`;
   $("pesoResumen").textContent=t;
 }
-function renderAll(){renderHoy();renderRutinas();renderProgreso();renderComida();renderBalance();renderAjustesIA();}
+function renderAll(){renderHoy();renderRutinas();renderProgreso();renderComida();renderBalance();renderAjustesIA();renderAyuno();renderHoyAyuno();}
 
 /* ===================== ACCIONES ===================== */
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
@@ -1094,14 +1096,16 @@ async function guardaComida(){
   const id="c"+Date.now(),kcal=Math.round(NC.items.reduce((a,i)=>a+i.k*i.x,0));
   const c={id,f:diaCom,t:Date.now(),tipo:NC.tipo,items:NC.items.map(i=>({n:i.n,k:i.k,x:i.x,...(i.ia?{ia:1}:{})})),kcal,antojo:NC.antojo,foto:!!NC.foto,...(NC.ia?{ia:NC.ia}:{})};
   if(NC.foto)await fotoCPut(id,NC.foto);
-  (S.comidas=S.comidas||[]).push(c);save();renderAll();
+  (S.comidas=S.comidas||[]).push(c);save();
+  const enAyuno=S.ayuno&&S.ayuno.inicio&&diaCom===hoyStr()&&kcal>0;let msgAy=null;
+  if(enAyuno){const h=(Date.now()-S.ayuno.inicio)/3600e3;ayunoFin();msgAy="Comida guardada · terminaste tu ayuno de "+h.toFixed(1)+" h"+(h>=S.ayuno.plan?" 💪":"");}else renderAll();
   if(NC.antojo){
     $("sheet").innerHTML=`<div style="text-align:center"><div style="font-size:54px">💚</div><h2 style="margin-top:6px">Registrado, sin culpa</h2>
      <p class="sub" style="font-size:15px;line-height:1.5;margin-top:8px">${mensajeGusto(kcal)}</p>
      <div class="tip ok" style="text-align:left;margin-top:14px">👉 <b>Lo siguiente:</b> tu próxima comida, normal. Sin saltarte comidas ni "compensar".</div>
      <button class="btn" style="margin-top:16px" onclick="cerrar()">Seguimos</button></div>`;
     $("sheetBox").scrollTop=0;
-  }else{cerrar();toast("Comida guardada");}
+  }else{cerrar();toast(msgAy||"Comida guardada");}
 }
 function mensajeGusto(k){
   const sem=semanaDias().filter(f=>f<hoyStr()).map(balanceDia).filter(v=>v!=null),def=sem.filter(v=>v<0).reduce((a,v)=>a-v,0);
@@ -1218,6 +1222,78 @@ window.iaConfig=()=>{const c=iaGet();
   if($("iaQuitar"))$("iaQuitar").onclick=()=>{iaSet({});cerrar();toast("Clave quitada");renderComida();renderAjustesIA();};
 };
 function renderAjustesIA(){const el=$("ajIA");if(!el)return;el.innerHTML=`<div class="sw"><div><b>✨ Análisis de fotos con IA</b><div class="sub" style="margin-top:3px">${iaOk()?"Activo con tu clave de Google":"Desactivado · gratis con tu clave de Google"}</div></div><button class="btn sm ${iaOk()?"ghost":""}" onclick="iaConfig()">${iaOk()?"Editar":"Activar"}</button></div>`;}
+
+/* ===================== AYUNO INTERMITENTE ===================== */
+const AY_PLANES=[{h:12,n:"12:12",d:"Suave · ideal para empezar"},{h:14,n:"14:10",d:"Intermedio"},{h:16,n:"16:8",d:"El más usado · máximo recomendado"}];
+const hhmm=ms=>{const m=Math.max(0,Math.floor(ms/60000));return Math.floor(m/60)+" h "+String(m%60).padStart(2,"0")+" min";};
+const hora=ts=>new Date(ts).toLocaleTimeString("es-PE",{hour:"numeric",minute:"2-digit"});
+function ayEtapa(h){
+  if(h<4)return ["Digiriendo","Tu cuerpo aún usa la energía de tu última comida."];
+  if(h<12)return ["En ayuno","Es normal sentir hambre por ratos: viene en olas y pasa. Toma agua."];
+  return ["Ayuno avanzado","Vas muy bien. Si te mareas o te sientes mal, rompe el ayuno: no pasa nada."];
+}
+function renderAyuno(){
+  const el=$("ayunoBox");if(!el)return;
+  const A=S.ayuno||{},plan=A.plan||12,now=Date.now();
+  if(!A.ok){el.innerHTML=`<div class="card rt" onclick="ayunoConfig()" style="cursor:pointer"><div class="cthumb">⏳</div><div class="tx"><b>Ayuno intermitente</b><div class="sub">Opcional · elige tu horario y lleva el tiempo</div></div><span class="pill on">Activar</span></div>`;return;}
+  if(A.inicio){
+    const t=now-A.inicio,meta=plan*3600e3,pct=Math.min(1,t/meta),ok=t>=meta,[et,tx]=ayEtapa(t/3600e3);
+    el.innerHTML=`<div class="card" style="border-color:${ok?"var(--acc)":"var(--line)"}"><div class="row" style="gap:14px">
+      <svg width="96" height="96" viewBox="0 0 96 96"><circle cx="48" cy="48" r="40" stroke="#1e2229" stroke-width="9" fill="none"/>
+       <circle cx="48" cy="48" r="40" stroke="${ok?"#c6ff3d":"#4fb3ff"}" stroke-width="9" fill="none" stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="${251.3*(1-pct)}" transform="rotate(-90 48 48)"/>
+       <text x="48" y="46" text-anchor="middle" fill="#f1f3f5" font-family="Barlow Condensed" font-weight="800" font-size="20">${Math.floor(t/3600e3)}:${String(Math.floor(t/60e3)%60).padStart(2,"0")}</text>
+       <text x="48" y="62" text-anchor="middle" fill="#8b939e" font-size="10">de ${plan} h</text></svg>
+      <div style="flex:1"><b style="color:${ok?"var(--acc)":"#4fb3ff"}">${ok?"¡Meta cumplida! 🎉":et}</b>
+       <div class="sub" style="font-size:13px;margin-top:2px">${ok?"Puedes comer cuando quieras. Rompe el ayuno con algo normal, sin atracón.":tx}</div>
+       <div class="sub" style="font-size:12px;margin-top:6px">Empezó ${hora(A.inicio)} · ${ok?"cumplido":"termina "+hora(A.inicio+meta)}</div></div></div>
+      <div class="row" style="margin-top:12px;gap:8px"><button class="btn sm ${ok?"":"ghost"}" style="flex:1" onclick="ayunoFin()">${ok?"Terminar ayuno ✓":"Terminar ahora"}</button><button class="pill" style="padding:10px 12px" onclick="ayunoAjusta()">✎ Hora</button></div></div>`;
+  }else{
+    const ult=(S.ayunos||[]).slice(-1)[0],venFin=ult?ult.fin+(24-plan)*3600e3:null;
+    const enVentana=venFin&&now<venFin;
+    el.innerHTML=`<div class="card"><div class="row" style="justify-content:space-between"><b>⏳ Ayuno ${plan}:${24-plan}</b><button class="pill" onclick="ayunoConfig()">Cambiar</button></div>
+      <div class="sub" style="font-size:13px;margin:6px 0 10px">${enVentana?`Ventana para comer hasta las <b style="color:var(--tx)">${hora(venFin)}</b> (quedan ${hhmm(venFin-now)}). Cuando termines tu última comida, empieza el ayuno.`:"Cuando termines tu última comida del día, empieza el ayuno."}</div>
+      <div class="row" style="gap:8px"><button class="btn sm" style="flex:2" onclick="ayunoIni()">Empezar ayuno ahora</button><button class="pill" style="padding:10px 12px" onclick="ayunoIni(true)">Empecé antes</button></div>
+      ${ayunoSemanaHTML()}</div>`;
+  }
+}
+function ayunoSemanaHTML(){const L=(S.ayunos||[]).filter(a=>a.fin>Date.now()-7*864e5);if(!L.length)return "";
+  const ok=L.filter(a=>a.fin-a.ini>=a.meta*3600e3).length;
+  return `<div class="sub" style="font-size:12px;margin-top:10px">Esta semana: ${L.length} ayuno${L.length>1?"s":""} · ${ok} completo${ok===1?"":"s"} · promedio ${(L.reduce((s,a)=>s+(a.fin-a.ini),0)/L.length/3600e3).toFixed(1)} h</div>`;}
+window.ayunoConfig=()=>{const A=S.ayuno||{};let pl=A.plan||12;
+  $("sheet").innerHTML=`<h2 style="margin-top:0">⏳ Ayuno intermitente</h2>
+   <div class="sub" style="font-size:14px;line-height:1.5">Dejas de comer por unas horas (incluye la noche) y comes en una ventana del día. Ayuda porque es más fácil comer menos, no por magia.</div>
+   <div id="ayPl" style="margin-top:12px">${AY_PLANES.map(p=>`<button class="card" data-h="${p.h}" style="display:block;width:100%;text-align:left;margin-bottom:6px;padding:10px 12px"><b>${p.n}</b> <span class="sub">· ${p.h} h sin comer, ${24-p.h} h para comer</span><div class="sub" style="font-size:12px">${p.d}</div></button>`).join("")}</div>
+   <div class="tip ok" style="margin-top:8px">💧 Durante el ayuno: agua, café o infusiones <b>sin azúcar</b>. Si tu cena es tarde algunos días, el 12:12 o 14:10 te acomoda mejor.</div>
+   <div class="tip no" style="margin-top:6px">⚠️ No lo hagas sin consultar si tienes diabetes con medicación, presión baja, estás embarazada o has tenido problemas con la comida. Si te mareas, come.</div>
+   <button class="btn" style="margin-top:12px" id="ayOk">${A.ok?"Guardar":"Activar ayuno"}</button>
+   ${A.ok?`<button class="btn ghost" style="margin-top:8px" id="ayOff">Desactivar ayuno</button>`:""}`;
+  abrir();
+  const pinta=()=>$("ayPl").querySelectorAll("button").forEach(b=>b.style.borderColor=+b.dataset.h===pl?"var(--acc)":"");pinta();
+  $("ayPl").querySelectorAll("button").forEach(b=>b.onclick=()=>{pl=+b.dataset.h;pinta();});
+  $("ayOk").onclick=()=>{S.ayuno={...A,ok:true,plan:pl};save();cerrar();renderAll();toast("Ayuno "+pl+":"+(24-pl)+" activado");};
+  if($("ayOff"))$("ayOff").onclick=()=>{S.ayuno={plan:pl};save();cerrar();renderAll();};
+};
+window.ayunoIni=(antes)=>{
+  if(antes){ayunoHora(null);return;}
+  S.ayuno={...S.ayuno,inicio:Date.now()};save();renderAll();toast("Ayuno iniciado 💧");};
+function ayunoHora(cb){
+  const d=new Date((S.ayuno&&S.ayuno.inicio)||Date.now());const v=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+  $("sheet").innerHTML=`<h2 style="margin-top:0">¿A qué hora fue tu última comida?</h2><input id="ayH" type="time" value="${v}" style="margin-top:10px">
+   <div class="sub" style="margin-top:6px;font-size:12px">Si la hora es mayor que la actual, se toma como de ayer.</div><button class="btn" style="margin-top:12px" id="ayHok">Guardar</button>`;
+  abrir();
+  $("ayHok").onclick=()=>{const [h,m]=$("ayH").value.split(":").map(Number);if(isNaN(h))return;const x=new Date();x.setHours(h,m,0,0);if(x.getTime()>Date.now())x.setDate(x.getDate()-1);
+    S.ayuno={...S.ayuno,inicio:x.getTime()};save();cerrar();renderAll();};
+}
+window.ayunoAjusta=()=>ayunoHora();
+window.ayunoFin=(ts)=>{const A=S.ayuno;if(!A||!A.inicio)return;const fin=ts||Date.now();
+  (S.ayunos=S.ayunos||[]).push({ini:A.inicio,fin,meta:A.plan});if(S.ayunos.length>120)S.ayunos=S.ayunos.slice(-120);
+  const h=(fin-A.inicio)/3600e3,ok=h>=A.plan;S.ayuno={...A,inicio:null};save();renderAll();
+  toast(ok?"¡Ayuno de "+h.toFixed(1)+" h completo! 💪":"Ayuno de "+h.toFixed(1)+" h registrado. Escuchar a tu cuerpo también es progreso.");};
+setInterval(()=>{if(S.ayuno&&S.ayuno.inicio&&$("v-comida").classList.contains("on"))renderAyuno();if(S.ayuno&&S.ayuno.inicio&&$("v-hoy").classList.contains("on"))renderHoyAyuno();},30000);
+function renderHoyAyuno(){const el=$("hoyAyuno");if(!el)return;const A=S.ayuno||{};
+  if(!A.ok||!A.inicio){el.style.display="none";return;}
+  const t=Date.now()-A.inicio,ok=t>=A.plan*3600e3;el.style.display="flex";
+  el.innerHTML=`<div class="cthumb">⏳</div><div class="tx"><b>${ok?"Ayuno cumplido 🎉":"En ayuno · "+hhmm(t)}</b><div class="sub">${ok?"Ya puedes comer":"Meta "+A.plan+" h · termina "+hora(A.inicio+A.plan*3600e3)}</div></div>`;}
 
 /* ===================== ANIMACIONES GUÍA ===================== */
 /* Ángulos absolutos: 0 = hacia abajo, 90 = adelante (derecha), 180 = arriba, -90 = atrás (izquierda) */
