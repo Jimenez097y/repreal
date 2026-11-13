@@ -156,7 +156,7 @@ nav button.on{color:var(--acc)}
     <div class="card rt" style="margin-top:10px" id="hoyCama"></div>
     <div class="card rt" style="margin-top:10px" onclick="caminata()">
       <div id="demoCam"></div>
-      <div class="tx"><b>¿Saliste a caminar?</b><div class="sub">Regístralo: también suma a tu racha</div></div>
+      <div class="tx"><b>¿Saliste a caminar o trotar?</b><div class="sub">Sube la captura de Fitness y se registra sola</div></div>
       <span class="pill on">+ Registrar</span>
     </div>
     <p class="sub" style="margin-top:10px">Sin días fijos: la app te sugiere la rutina que hace más tiempo no haces, para equilibrar todo el cuerpo.</p>
@@ -229,6 +229,7 @@ nav button.on{color:var(--acc)}
       <div class="stat"><b id="t-min">0</b><span>minutos</span></div>
       <div class="stat"><b id="t-kcal">0</b><span>kcal quemadas</span></div>
     </div>
+    <div class="sub" id="t-km" style="margin-top:8px;text-align:center"></div>
     <h2>Historial</h2>
     <div class="card"><ul class="list" id="historial"></ul></div>
     <h2>Ajustes</h2>
@@ -537,11 +538,12 @@ function renderProgreso(){
   $("t-ses").textContent=S.sesiones.length;
   $("t-min").textContent=Math.round(S.sesiones.reduce((a,s)=>a+s.seg,0)/60);
   $("t-kcal").textContent=Math.round(S.sesiones.reduce((a,s)=>a+(s.kcal||0),0));
+  {const km=S.sesiones.reduce((a,s)=>a+(s.km||0),0);$("t-km").textContent=km?"🚶 "+km.toFixed(1)+" km recorridos en total":"";}
   if(S.meta) $("inMeta").placeholder="Meta actual: "+S.meta+" kg";
   // historial
-  const h=[...S.sesiones].reverse().slice(0,40);const nomS=s=>s.rut==="caminata"?"Caminata":(RUT.find(x=>x.id===s.rut)?nomR(RUT.find(x=>x.id===s.rut)):s.rut);
+  const h=[...S.sesiones].reverse().slice(0,40);const nomS=s=>s.rut==="caminata"?(ACTS[s.act||"caminata"]||ACTS.caminata).ic+" "+(ACTS[s.act||"caminata"]||ACTS.caminata).n:(RUT.find(x=>x.id===s.rut)?nomR(RUT.find(x=>x.id===s.rut)):s.rut);
   $("historial").innerHTML=h.length?h.map(s=>{const r=RUT.find(x=>x.id===s.rut);const f=new Date(s.f+"T12:00");
-    return `<li><span><b>${nomS(s)}</b><br><span class="sub">${f.toLocaleDateString("es-PE",{weekday:"short",day:"numeric",month:"short"})} · ${Math.round(s.seg/60)} min · ${Math.round(s.kcal||0)} kcal${s.cam?" · "+s.reps+"/"+s.metaReps+" reps 📷":""}${s.dolor&&s.dolor.length?" · molestia":""}${s.parcial?" · incompleta":""}</span></span><button class="x" onclick="borrarSes(${s.t})">✕</button></li>`}).join(""):`<div class="empty">Aún no hay sesiones. ¡La primera es la más importante!</div>`;
+    return `<li><span><b>${nomS(s)}</b><br><span class="sub">${f.toLocaleDateString("es-PE",{weekday:"short",day:"numeric",month:"short"})} · ${Math.round(s.seg/60)} min · ${Math.round(s.kcal||0)} kcal${s.km?" · "+s.km+" km":""}${s.km&&s.seg?" · "+Math.floor(s.seg/60/s.km)+"'"+String(Math.round(s.seg/s.km%60)).padStart(2,"0")+"\"/km":""}${s.kcalDisp?" 📱":""}${s.cam?" · "+s.reps+"/"+s.metaReps+" reps 📷":""}${s.dolor&&s.dolor.length?" · molestia":""}${s.parcial?" · incompleta":""}</span></span><button class="x" onclick="borrarSes(${s.t})">✕</button></li>`}).join(""):`<div class="empty">Aún no hay sesiones. ¡La primera es la más importante!</div>`;
   seg("segMeta",[3,4,5,6].map(n=>({v:n,l:n+" días"})),S.metaDias,v=>{S.metaDias=+v;save();renderAll();});
   renderChart();
 }
@@ -786,19 +788,39 @@ window.fin=parcial=>{clearInterval(tick);const P=PL,r=P.r;const seg=Math.round((
 
 /* ===================== PLAN / CAMINATA ===================== */
 window.cambiaSem=d=>{const w=Math.max(1,Math.min(4,semana()+d));const x=new Date();x.setDate(x.getDate()-(w-1)*7);S.inicio=hoyStr(x);save();renderAll();};
+const ACTS={caminata:{n:"Caminata",met:4.3,ic:"🚶"},trote:{n:"Trote",met:8,ic:"🏃"},bici:{n:"Bicicleta",met:6.8,ic:"🚴"},otro:{n:"Otra actividad",met:5,ic:"⚡"}};
 window.caminata=()=>{
-  $("sheet").innerHTML=`<div class="row">${demoSVG("caminata",64)}<div><h2 style="margin:0">Registrar caminata</h2><div class="sub">A paso ligero cuenta como entrenamiento.</div></div></div>
-  <div class="sub" style="margin:14px 0 6px">¿Cuántos minutos?</div>
-  <div class="seg" id="segCam">${[15,20,30,45,60].map(m=>`<button data-m="${m}">${m}</button>`).join("")}</div>
-  <input id="inCamMin" type="number" inputmode="numeric" placeholder="u otro: minutos" style="margin-top:10px">
-  <input id="inPasos" type="number" inputmode="numeric" placeholder="Pasos (opcional, de tu iPhone)" style="margin-top:10px">
-  <button class="btn" style="margin-top:16px" id="okCam">Guardar caminata</button>`;
+  let tipo="caminata",fecha=hoyStr(),hIni=null;
+  $("sheet").innerHTML=`<div class="row">${demoSVG("caminata",64)}<div><h2 style="margin:0">Registrar actividad</h2><div class="sub">Caminata, trote o bici fuera de la app.</div></div></div>
+  <label class="fotoPick" style="min-height:64px;margin-top:12px" id="actPick"><input type="file" accept="image/*" hidden id="actIn"><span>📸 Leer captura de Fitness / Salud <small class="sub">${iaOk()?"(con IA)":"(activa la IA primero)"}</small></span></label>
+  <div id="actIA" style="margin-top:8px"></div>
+  <div class="seg" id="actTipo" style="margin-top:10px">${Object.entries(ACTS).map(([k,a])=>`<button data-v="${k}" class="${k==="caminata"?"on":""}">${a.ic} ${a.n.split(" ")[0]}</button>`).join("")}</div>
+  <div class="row" style="margin-top:10px;gap:8px"><input id="inCamMin" type="number" inputmode="decimal" step="0.1" placeholder="Minutos"><input id="inKm" type="number" inputmode="decimal" step="0.01" placeholder="Km (opcional)"></div>
+  <div class="row" style="margin-top:8px;gap:8px"><input id="inKcal" type="number" inputmode="numeric" placeholder="Kcal activas (opcional)"><input id="inPasos" type="number" inputmode="numeric" placeholder="Pasos (opcional)"></div>
+  <div class="sub" id="actFecha" style="margin-top:8px;font-size:12px">Fecha: hoy</div>
+  <div class="sub" style="font-size:12px;margin-top:4px">Si pones las kcal activas de tu iPhone o reloj, uso esas. Si no, las estimo.</div>
+  <button class="btn" style="margin-top:14px" id="okCam">Guardar actividad</button>`;
   abrir();
-  $("segCam").querySelectorAll("button").forEach(b=>b.onclick=()=>{$("segCam").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));$("inCamMin").value=b.dataset.m;});
-  $("okCam").onclick=()=>{const m=parseInt($("inCamMin").value);if(!(m>0&&m<600))return toast("Pon los minutos");
-    const kg=pesoActual()||75,ses={id:Date.now()+"",t:Date.now(),f:hoyStr(),rut:"caminata",seg:m*60,kcal:Math.round(kcalNet(MET.caminata,m*60))};
-    const ps=parseInt($("inPasos").value);if(ps>0)ses.pasos=ps;
-    S.sesiones.push(ses);save();renderAll();cerrar();toast("¡Caminata registrada!");};
+  const setTipo=t=>{tipo=ACTS[t]?t:"otro";$("actTipo").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x.dataset.v===tipo));};
+  $("actTipo").querySelectorAll("button").forEach(b=>b.onclick=()=>setTipo(b.dataset.v));
+  $("actPick").onclick=e=>{if(!iaOk()){e.preventDefault();iaConfig();}};
+  $("actIn").onchange=async e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(!f)return;
+    $("actIA").innerHTML=`<div class="tip ok" style="text-align:center">✨ Leyendo tu captura…</div>`;
+    try{const blob=await achicar(f,1400);const o=await iaJSON(blob,IA_ACT);
+      if(!o||!(+o.minutos>0)){$("actIA").innerHTML=`<div class="tip no">No encontré datos de entrenamiento en la imagen. Llénalos a mano.</div>`;return;}
+      setTipo(o.tipo);$("inCamMin").value=Math.round(+o.minutos*10)/10;if(+o.km>0)$("inKm").value=(+o.km).toFixed(2);
+      if(+o.kcal_activas>0)$("inKcal").value=Math.round(+o.kcal_activas);if(+o.pasos>0)$("inPasos").value=Math.round(+o.pasos);
+      if(o.fecha&&/^\d{4}-\d{2}-\d{2}$/.test(o.fecha)&&o.fecha<=hoyStr()){fecha=o.fecha;$("actFecha").textContent="Fecha: "+new Date(fecha+"T12:00").toLocaleDateString("es-PE",{weekday:"long",day:"numeric",month:"short"})+(o.hora_inicio?" · "+o.hora_inicio:"");}
+      if(o.hora_inicio)hIni=o.hora_inicio;
+      $("actIA").innerHTML=`<div class="tip ok">✨ Leí: ${o.nombre||ACTS[tipo].n} · ${Math.round(+o.minutos)} min${+o.km>0?" · "+(+o.km).toFixed(2)+" km":""}${+o.kcal_activas>0?" · "+Math.round(+o.kcal_activas)+" kcal activas":""}. Revisa y guarda.</div>`;
+    }catch(err){$("actIA").innerHTML=`<div class="tip no">${iaError(err)}</div>`;}};
+  $("okCam").onclick=()=>{const m=parseFloat($("inCamMin").value);if(!(m>0&&m<1000))return toast("Pon los minutos");
+    const km=parseFloat($("inKm").value),kc=parseInt($("inKcal").value),ps=parseInt($("inPasos").value);
+    let t=Date.now();if(fecha!==hoyStr()||hIni){const [hh,mm]=(hIni||"12:00").split(":").map(Number);const d=new Date(fecha+"T12:00");d.setHours(hh||12,mm||0,0,0);t=d.getTime();}
+    if(S.sesiones.some(x=>x.rut==="caminata"&&x.f===fecha&&x.seg===Math.round(m*60)&&(x.km||0)===(km>0?+km.toFixed(2):0)))return toast("Esa actividad ya estaba registrada");
+    const ses={id:Date.now()+"",t,f:fecha,rut:"caminata",act:tipo,seg:Math.round(m*60),kcal:kc>0?kc:Math.round(kcalNet(ACTS[tipo].met,m*60))};
+    if(kc>0)ses.kcalDisp=1;if(km>0)ses.km=+km.toFixed(2);if(ps>0)ses.pasos=ps;
+    S.sesiones.push(ses);S.sesiones.sort((a,b)=>a.t-b.t);save();renderAll();cerrar();toast(ACTS[tipo].ic+" ¡"+ACTS[tipo].n+" registrada!");};
 };
 
 /* ===================== MARCA DE AGUA ===================== */
@@ -1174,7 +1196,7 @@ Estima la porción que se ve (porción casera peruana) y las kcal de cada compon
 Si hay bebidas visibles, inclúyelas. Si la foto no es comida, devuelve items vacío.
 Responde SOLO JSON con esta forma exacta:
 {"items":[{"n":"nombre corto","porcion":"ej. 1 plato, 1 taza, 2 presas","kcal":numero}],"confianza":"alta|media|baja","nota":"una frase corta en español, opcional"}`;
-async function iaAnalizar(blob){
+async function iaJSON(blob,prompt){
   const cfg=iaGet();if(!cfg.key)throw Object.assign(new Error("sin clave"),{status:0});
   let modelos=cfg.modelo?[cfg.modelo]:[];
   if(!modelos.length){modelos=await iaModelos(cfg.key);}
@@ -1183,19 +1205,27 @@ async function iaAnalizar(blob){
   for(const m of modelos.slice(0,4)){
     try{
       const r=await fetch(`${IA_BASE}/models/${m}:generateContent`,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":cfg.key},
-        body:JSON.stringify({contents:[{parts:[{text:IA_PROMPT},{inline_data:{mime_type:blob.type||"image/jpeg",data}}]}],generationConfig:{responseMimeType:"application/json",temperature:0.2}})});
+        body:JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:blob.type||"image/jpeg",data}}]}],generationConfig:{responseMimeType:"application/json",temperature:0.1}})});
       if(!r.ok){ultimo=Object.assign(new Error("http"),{status:r.status});if(r.status===400||r.status===403)throw ultimo;continue;}
       const j=await r.json();
       const txt=((j.candidates||[])[0]?.content?.parts||[]).map(p=>p.text||"").join("");
       const o=JSON.parse(txt.replace(/^```json|```$/g,"").trim());
       if(cfg.modelo!==m)iaSet({...cfg,modelo:m});
-      o.items=(o.items||[]).filter(i=>i&&i.n&&isFinite(+i.kcal)).map(i=>({n:String(i.n).slice(0,60)+(i.porcion?` (${String(i.porcion).slice(0,30)})`:""),k:Math.max(0,Math.min(3000,Math.round(+i.kcal))),x:1,ia:true}));
       return o;
     }catch(e){ultimo=e;if(e.status===400||e.status===403)throw e;}
   }
   if(cfg.modelo){iaSet({...cfg,modelo:null});}
   throw ultimo||new Error("falló");
 }
+async function iaAnalizar(blob){
+  const o=await iaJSON(blob,IA_PROMPT);
+  o.items=(o.items||[]).filter(i=>i&&i.n&&isFinite(+i.kcal)).map(i=>({n:String(i.n).slice(0,60)+(i.porcion?` (${String(i.porcion).slice(0,30)})`:""),k:Math.max(0,Math.min(3000,Math.round(+i.kcal))),x:1,ia:true}));
+  return o;
+}
+const IA_ACT=`Esta es una captura de pantalla de una app de actividad física (Apple Fitness, Salud, Google Fit, Strava, Samsung Health, un reloj, etc.).
+Extrae los datos del entrenamiento. Responde SOLO JSON con esta forma (usa null si un dato no aparece):
+{"tipo":"caminata|trote|bici|otro","nombre":"texto corto como aparece, ej. Caminata al aire libre","minutos":numero,"km":numero,"kcal_activas":numero,"kcal_total":numero,"pasos":numero,"fecha":"YYYY-MM-DD","hora_inicio":"HH:MM"}
+Las "calorías activas" son las del movimiento, no las totales. Convierte la duración h:mm:ss a minutos.`;
 function iaError(e){const s=e&&e.status;
   if(s===400||s===403)return "Tu clave no es válida o no tiene permiso. Revísala en Ajustes.";
   if(s===429)return "Llegaste al límite gratis de hoy de Google. Usa la lista de platos o intenta más tarde.";
