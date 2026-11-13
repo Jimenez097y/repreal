@@ -1192,12 +1192,12 @@ window.iaConfig=()=>{const c=iaGet();
    <div class="card" style="margin-top:12px;font-size:14px;line-height:1.6">
     <b>1.</b> Abre <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--acc)">aistudio.google.com/apikey</a> y entra con tu Gmail.<br>
     <b>2.</b> Toca <b>Create API key</b> y cópiala.<br><b>3.</b> Pégala aquí abajo.</div>
-   <input id="iaKey" type="password" autocomplete="off" placeholder="Pega tu clave (empieza con AIza…)" style="margin-top:12px" value="${c.key?c.key.replace(/"/g,""):""}">
+   <input id="iaKey" type="password" autocomplete="off" placeholder="Pega tu clave (empieza con AIza… o AQ.…)" style="margin-top:12px" value="${c.key?c.key.replace(/"/g,""):""}">
    <div class="row" style="margin-top:10px;gap:8px"><button class="btn" style="flex:2" id="iaProbar">Guardar y probar</button>${c.key?`<button class="btn ghost" style="flex:1" id="iaQuitar">Quitar</button>`:""}</div>
    <div id="iaEst" class="sub" style="margin-top:10px"></div>
    <p class="sub" style="margin-top:12px;font-size:12px">🔒 Tu clave se guarda solo en este celular. Al analizar, la foto se envía a Google. Google cambia sus límites gratis de vez en cuando; si se acaban, la lista de platos sigue funcionando.</p>`;
   abrir();
-  $("iaProbar").onclick=async()=>{const k=$("iaKey").value.trim();if(!/^[A-Za-z0-9_\-]{20,}$/.test(k))return toast("Esa clave no parece válida");
+  $("iaProbar").onclick=async()=>{const k=$("iaKey").value.replace(/\s+/g,"");if(!/^[A-Za-z0-9_.\-]{20,}$/.test(k))return toast("Esa clave no parece válida. Cópiala completa, sin espacios.");
     $("iaEst").textContent="Probando tu clave…";
     try{const ms=await iaModelos(k);if(!ms.length)throw Object.assign(new Error(),{status:404});
       iaSet({key:k,modelo:null});$("iaEst").innerHTML=`<span style="color:var(--acc)">✓ Listo. Ya puedes analizar fotos de tus comidas.</span>`;renderComida();renderAjustesIA();}
