@@ -580,7 +580,7 @@ window.detalle=id=>{const r=RUT.find(x=>x.id===id),c=cfg(r);
   <p class="sub" style="margin-top:10px;font-size:13px">👆 Toca cualquier figura para verla en grande, en cámara lenta y con tips.</p>
   <div class="row" style="margin:14px 0 6px;flex-wrap:wrap"><span class="pill on">${minTxt(duracion(r))}</span><span class="pill" style="border-color:#ff8a3d;color:#ffb27d">🔥 ≈${kcalRutina(r)} kcal</span><span class="pill">${c.rondas} ronda${c.rondas>1?"s":""}</span><span class="pill">${c.w}s / ${c.r}s</span></div>
   ${usaCal(r)?`<h3 style="margin:16px 0 4px;color:#ffd23d">Calentamiento · ${Math.round(r.cal.length*T_CAL/60*10)/10} min</h3>`+r.cal.map(k=>`<div class="ex">${demoSVG(k,56)}<div style="flex:1"><b>${EJ[k].n}</b><small>${EJ[k].t}</small></div><span class="pill" style="align-self:flex-start">${T_CAL} s</span></div>`).join("")+`<h3 style="margin:16px 0 4px;color:var(--acc)">Rutina</h3>`:""}
-  ${exs(r).map((k,i)=>`<div class="ex">${demoSVG(k,64)}<div style="flex:1"><b>${EJ[k].n}</b><small>${EJ[k].t}</small></div><div style="align-self:flex-start;text-align:right"><span class="pill ${usaCam(r,k)?"on":""}">${usaCam(r,k)?metaReps(k)+" reps":c.w+" s"}</span><div class="sub" style="font-size:11px;margin-top:4px">≈${Math.round(c.rondas*kcalNet(metDe(k),usaCam(r,k)?metaReps(k)*(CNT[k].x2?1.2:3):c.w))} kcal</div></div></div>`).join("")}
+  ${exs(r).map((k,i)=>`<div class="ex">${demoSVG(k,64)}<div style="flex:1"><b>${EJ[k].n}</b>${TOPS[k]?' <span class="pill" style="font-size:10px;padding:2px 6px">📐 desde arriba</span>':""}<small>${EJ[k].t}</small></div><div style="align-self:flex-start;text-align:right"><span class="pill ${usaCam(r,k)?"on":""}">${usaCam(r,k)?metaReps(k)+" reps":c.w+" s"}</span><div class="sub" style="font-size:11px;margin-top:4px">≈${Math.round(c.rondas*kcalNet(metDe(k),usaCam(r,k)?metaReps(k)*(CNT[k].x2?1.2:3):c.w))} kcal</div></div></div>`).join("")}
   ${usaCal(r)?`<h3 style="margin:16px 0 4px;color:#9d8bff">Estiramiento final · ${Math.round(r.vc.length*T_VC/60*10)/10} min</h3>`+r.vc.map(k=>`<div class="ex">${demoSVG(k,56)}<div style="flex:1"><b>${EJ[k].n}</b><small>${EJ[k].t}</small></div><span class="pill" style="align-self:flex-start">${T_VC} s</span></div>`).join(""):""}
   ${S.cam&&!r.fijo?'<p class="sub" style="margin-top:10px">Los que dicen "reps" los cuenta la cámara. Los demás van por tiempo.</p>':""}
   <div class="sfoot"><div class="row" style="gap:8px">
@@ -1448,9 +1448,85 @@ function poseEn(k,ms){const D=DEMOS[k],n=D.f.length,T=D.d*n/2,ph=(ms%T)/T*n,i=Ma
 let demoRAF=null,velZoom=1,tZoom=0,tPrev=performance.now();
 function animarDemos(){
   const now=performance.now();tZoom+=(now-tPrev)*velZoom;tPrev=now;
-  document.querySelectorAll("svg.demo").forEach(s=>{const g=s.querySelector(".fig");if(g&&s.getClientRects().length){const k=s.dataset.k;dibujaFig(g,poseEn(k,s.dataset.z?tZoom:now),k);}});
+  document.querySelectorAll("svg.demo").forEach(s=>{const g=s.querySelector(".fig");if(g&&s.getClientRects().length){const k=s.dataset.k;
+    if(s.dataset.top)g.innerHTML=figTop(poseTop(k,tZoom),k);else dibujaFig(g,poseEn(k,s.dataset.z?tZoom:now),k);}});
   demoRAF=requestAnimationFrame(animarDemos);
 }
+/* ===================== VISTA CENITAL (desde arriba) ===================== */
+/* Ángulos en el plano del piso: 0 = hacia los pies, 90 = derecha, 180 = hacia la cabeza, -90 = izquierda.
+   Cada segmento: [ángulo, escala (acortamiento cuando sube a la cámara), alto 0..1] */
+const TL={brazo:15,ante:14,muslo:21,pierna:21};
+function TP(o){return Object.assign({modo:"piso",rot:0,hx:0,hy:0,tA:0,cara:"arriba",
+  a1:[[8,1,0],[4,1,0]],a2:[[-8,1,0],[-4,1,0]],l1:[[3,1,0],[0,1,0]],l2:[[-3,1,0],[0,1,0]]},o);}
+const ESPA=TP({});
+const PLAN_ALTA={cara:"abajo",tA:.5,a1:[[95,.35,.5],[0,.2,.3]],a2:[[-95,.35,.5],[0,.2,.3]],l1:[[4,1,.35],[0,1,.2]],l2:[[-4,1,.35],[0,1,.2]]};
+const TOPS={
+  deadbug:{f:[TP({a1:[[90,.18,.9],[90,.12,1]],a2:[[-90,.18,.9],[-90,.12,1]],l1:[[12,.22,.8],[0,1,1]],l2:[[-12,.22,.8],[0,1,1]]}),
+              TP({a1:[[172,.95,.35],[176,.95,.3]],a2:[[-90,.18,.9],[-90,.12,1]],l1:[[12,.22,.8],[0,1,1]],l2:[[-3,1,.2],[0,1,.15]]}),
+              TP({a1:[[90,.18,.9],[90,.12,1]],a2:[[-90,.18,.9],[-90,.12,1]],l1:[[12,.22,.8],[0,1,1]],l2:[[-12,.22,.8],[0,1,1]]}),
+              TP({a1:[[90,.18,.9],[90,.12,1]],a2:[[-172,.95,.35],[-176,.95,.3]],l1:[[3,1,.2],[0,1,.15]],l2:[[-12,.22,.8],[0,1,1]]})],d:2200,t:"El brazo y la pierna que se estiran son siempre de lados contrarios."},
+  bici:{f:[TP({rot:18,tA:.3,a1:[[125,.9,.5],[-135,.85,.6]],a2:[[-125,.9,.5],[135,.85,.6]],l1:[[2,1,.35],[0,1,.35]],l2:[[-160,.55,.8],[-10,.5,.9]]}),
+           TP({rot:-18,tA:.3,a1:[[125,.9,.5],[-135,.85,.6]],a2:[[-125,.9,.5],[135,.85,.6]],l1:[[160,.55,.8],[10,.5,.9]],l2:[[-2,1,.35],[0,1,.35]]})],d:1300,t:"Gira el torso: el codo va hacia la rodilla contraria."},
+  torsion:{f:[TP({a1:[[90,1,0],[90,1,0]],a2:[[-90,1,0],[-90,1,0]],l1:[[55,1,.25],[-25,.95,.15]],l2:[[45,1,.45],[-30,.95,.35]]}),
+              TP({a1:[[90,1,0],[90,1,0]],a2:[[-90,1,0],[-90,1,0]],l1:[[8,.3,.9],[0,.7,1]],l2:[[-8,.3,.9],[0,.7,1]]}),
+              TP({a1:[[90,1,0],[90,1,0]],a2:[[-90,1,0],[-90,1,0]],l1:[[-45,1,.45],[30,.95,.35]],l2:[[-55,1,.25],[25,.95,.15]]}),
+              TP({a1:[[90,1,0],[90,1,0]],a2:[[-90,1,0],[-90,1,0]],l1:[[8,.3,.9],[0,.7,1]],l2:[[-8,.3,.9],[0,.7,1]]})],d:2600,t:"Brazos en cruz y hombros pegados al piso; solo caen las rodillas."},
+  fig4:{f:[TP({l2:[[-4,.6,.6],[0,.5,.3]],l1:[[45,.8,.5],[-95,.95,.7]]}),
+           TP({l2:[[-4,.5,.7],[0,.45,.35]],l1:[[48,.72,.55],[-95,.95,.75]],a1:[[20,1,.1],[10,1,.1]],a2:[[-20,1,.1],[-10,1,.1]]})],d:2400,t:"El tobillo descansa sobre la rodilla contraria, formando un 4."},
+  flexion:{f:[TP(PLAN_ALTA),TP({...PLAN_ALTA,tA:.1,a1:[[45,.9,.45],[160,.6,.2]],a2:[[-45,.9,.45],[-160,.6,.2]]})],d:1300,t:"Codos hacia atrás a unos 45°, no abiertos en cruz."},
+  flexAbierta:{f:[TP({...PLAN_ALTA,a1:[[100,.6,.5],[90,.3,.3]],a2:[[-100,.6,.5],[-90,.3,.3]]}),TP({...PLAN_ALTA,tA:.1,a1:[[82,1,.45],[175,.55,.2]],a2:[[-82,1,.45],[-175,.55,.2]]})],d:1300,t:"Manos más anchas que los hombros: trabaja más el pecho."},
+  toqueHombro:{f:[TP({...PLAN_ALTA,l1:[[12,1,.35],[0,1,.2]],l2:[[-12,1,.35],[0,1,.2]]}),TP({...PLAN_ALTA,a1:[[-108,.65,.9],[-72,.65,1]],l1:[[12,1,.35],[0,1,.2]],l2:[[-12,1,.35],[0,1,.2]]}),
+                  TP({...PLAN_ALTA,l1:[[12,1,.35],[0,1,.2]],l2:[[-12,1,.35],[0,1,.2]]}),TP({...PLAN_ALTA,a2:[[108,.65,.9],[72,.65,1]],l1:[[12,1,.35],[0,1,.2]],l2:[[-12,1,.35],[0,1,.2]]})],d:1400,t:"Pies separados: así la cadera no se mueve al tocar el hombro."},
+  escalador:{f:[TP(PLAN_ALTA),TP({...PLAN_ALTA,l1:[[165,.6,.45],[-5,.55,.35]]}),TP(PLAN_ALTA),TP({...PLAN_ALTA,l2:[[-165,.6,.45],[5,.55,.35]]})],d:900,t:"La rodilla viaja recta hacia el pecho, sin abrirse."},
+  rotTronco:{f:[TP({modo:"pie",rot:38,a1:[[128,1,.6],[128,1,.6]],a2:[[-52,1,.6],[-52,1,.6]]}),TP({modo:"pie",rot:-38,a1:[[52,1,.6],[52,1,.6]],a2:[[-128,1,.6],[-128,1,.6]]})],d:1100,t:"Los pies no se mueven: gira solo el torso."},
+  circHip:{f:[TP({modo:"pie",hx:6,hy:0}),TP({modo:"pie",hx:0,hy:6}),TP({modo:"pie",hx:-6,hy:0}),TP({modo:"pie",hx:0,hy:-6})],d:900,t:"La cadera dibuja un círculo; los hombros casi no se mueven."}
+};
+TOPS.toqueHombroRod=TOPS.toqueHombro;TOPS.escaladorSilla=TOPS.escalador;
+function mezclaT(A,B,t){const o={...A};["rot","hx","hy","tA"].forEach(k=>o[k]=lerp(A[k],B[k],t));
+  ["a1","a2","l1","l2"].forEach(k=>o[k]=A[k].map((s,i)=>s.map((v,j)=>lerp(v,B[k][i][j],t))));return o;}
+function poseTop(k,ms){const D=TOPS[k],n=D.f.length,T=D.d*n/2,ph=(ms%T)/T*n,i=Math.floor(ph),t=ph-i;const e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;return mezclaT(D.f[i],D.f[(i+1)%n],e);}
+function figTop(f,k){
+  const mus=musDe(k),has=m=>mus.includes(m),hi="#ff8a3d";
+  const col=a=>{const v=Math.round(140+a*115);return `rgb(${v},${v+3},${v+8})`;};
+  const L=(a,b,w,c)=>`<line x1="${fx(a[0])}" y1="${fx(a[1])}" x2="${fx(b[0])}" y2="${fx(b[1])}" stroke="${c}" stroke-width="${w}" stroke-linecap="round"/>`;
+  const C=(p,r,c,ex="")=>`<circle cx="${fx(p[0])}" cy="${fx(p[1])}" r="${fx(r)}" fill="${c}" ${ex}/>`;
+  const seg=(p,s,len)=>pol(p,s[0],len*s[1]);
+  let out="";
+  if(f.modo==="pie"){
+    out+=`<g transform="translate(60 60) scale(1.4) translate(-60 -60)">`;
+    const c=[60,60],r=f.rot*Math.PI/180,ux=Math.cos(r),uy=Math.sin(r);
+    out+=`<ellipse cx="52" cy="76" rx="4.5" ry="7" fill="#5d6572"/><ellipse cx="68" cy="76" rx="4.5" ry="7" fill="#5d6572"/>`;
+    out+=`<ellipse cx="${fx(60+f.hx)}" cy="${fx(64+f.hy)}" rx="13" ry="7" fill="${has("M")&&k==="circHip"?hi:"#9aa1ab"}"/>`;
+    const s1=[c[0]+ux*15,c[1]+uy*15],s2=[c[0]-ux*15,c[1]-uy*15];
+    out+=`<ellipse cx="60" cy="60" rx="17" ry="7.5" fill="#c9ced6" transform="rotate(${f.rot} 60 60)"/>`;
+    if(k==="circHip"){out+=L(s1,[60+f.hx+11,64+f.hy-1],5,"#e9ecef")+L(s2,[60+f.hx-11,64+f.hy-1],5,"#e9ecef");}
+    else{const e1=seg(s1,f.a1[0],TL.brazo),m1=seg(e1,f.a1[1],TL.ante),e2=seg(s2,f.a2[0],TL.brazo),m2=seg(e2,f.a2[1],TL.ante);
+      out+=L(s1,e1,6,"#e9ecef")+L(e1,m1,5.5,"#e9ecef")+L(s2,e2,6,"#e9ecef")+L(e2,m2,5.5,"#e9ecef")+C(m1,3.2,"#e9ecef")+C(m2,3.2,"#e9ecef");}
+    out+=C(c,9,"#f1f3f5")+C([c[0]-Math.sin(r)*-8.5,c[1]+Math.cos(r)*8.5],2.6,"#f1f3f5");
+    return out+"</g>";
+  }
+  const N=[60,36],H=[60+f.hx,68+f.hy],r=f.rot*Math.PI/180;
+  const s1=[N[0]+Math.cos(r)*11,N[1]+Math.sin(r)*11],s2=[N[0]-Math.cos(r)*11,N[1]-Math.sin(r)*11];
+  const c1=[H[0]+7,H[1]],c2=[H[0]-7,H[1]];
+  const limb=(root,sg,l1,l2,w,mu1,mu2)=>{const a=seg(root,sg[0],l1),b=seg(a,sg[1],l2);
+    return {a,b,s:L(root,a,w+sg[0][2]*3,mu1?hi:col(sg[0][2]))+L(a,b,w-.5+sg[1][2]*3,mu2?hi:col(sg[1][2]))+C(b,2.6+sg[1][2]*1.4,mu2?hi:col(sg[1][2]))};};
+  // piernas y brazos "bajos" primero, luego torso, luego lo elevado
+  const P=[limb(c1,f.l1,TL.muslo,TL.pierna,7,has("Q"),has("P")),limb(c2,f.l2,TL.muslo,TL.pierna,7,has("Q"),has("P")),
+           limb(s1,f.a1,TL.brazo,TL.ante,5.5,has("B")||has("H"),has("B")),limb(s2,f.a2,TL.brazo,TL.ante,5.5,has("B")||has("H"),has("B"))];
+  const alto=i=>[f.l1,f.l2,f.a1,f.a2][i][0][2];
+  P.forEach((p,i)=>{if(alto(i)<.5)out+=p.s;});
+  const tc=has("A")||has("Pe")?hi:col(.4+f.tA*.4);
+  out+=`<polygon points="${fx(s1[0])},${fx(s1[1])} ${fx(s2[0])},${fx(s2[1])} ${fx(c2[0])},${fx(c2[1])} ${fx(c1[0])},${fx(c1[1])}" fill="${tc}" stroke="${tc}" stroke-width="3" stroke-linejoin="round"/>`;
+  if(has("G"))out+=C(H,5,hi);
+  const hd=[N[0]+(s1[0]+s2[0]-2*N[0])/2,N[1]-10];
+  out+=C(hd,8.5+f.tA*1.2,"#f1f3f5");
+  if(f.cara==="arriba")out+=C([hd[0]-3,hd[1]-1],1.4,"#0e1013")+C([hd[0]+3,hd[1]-1],1.4,"#0e1013");
+  else out+=`<path d="M${fx(hd[0]-6)} ${fx(hd[1]-2)} q6 -6 12 0" stroke="#5d6572" stroke-width="2" fill="none"/>`;
+  P.forEach((p,i)=>{if(alto(i)>=.5)out+=p.s;});
+  return out;
+}
+function topSVG(k,size){return `<svg class="demo" data-k="${k}" data-top="1" data-z="1" width="${size}" height="${size}" viewBox="0 -4 120 120"><rect x="6" y="2" width="108" height="110" rx="10" fill="none" stroke="#2a2f37" stroke-dasharray="3 5"/><g class="fig"></g></svg>`;}
+
 /* ---------- pantalla completa ---------- */
 let zoomPausa=false;
 function abrirZoom(k){
@@ -1460,9 +1536,10 @@ function abrirZoom(k){
   velZoom=1;
   $("zoom").innerHTML=`<button class="sheetx" style="position:absolute;right:14px;top:calc(14px + env(safe-area-inset-top))" onclick="cerrarZoom()">✕</button>
    <div class="zin">
-    <div class="phase" style="color:var(--acc)">${FRENTE.has(k)?"Vista de frente":"Vista de lado"}</div>
     <div class="pname">${e.n}</div>
-    <div class="zfig">${demoSVG(k,300,{big:true}).replace('class="demo"','class="demo" data-z="1"')}</div>
+    ${TOPS[k]?`<div class="seg" id="segVista" style="max-width:300px;margin:10px auto 0"><button class="on" data-v="l">${FRENTE.has(k)?"De frente":"De lado"}</button><button data-v="t">📐 Desde arriba</button></div>`:`<div class="phase" style="color:var(--acc);margin-top:6px">${FRENTE.has(k)?"Vista de frente":"Vista de lado"}</div>`}
+    <div class="zfig" id="zfig">${demoSVG(k,300,{big:true}).replace('class="demo"','class="demo" data-z="1"')}</div>
+    <div class="sub" id="ztopTip" style="display:none;font-size:14px;color:#dfff9a;margin-bottom:8px">${TOPS[k]?TOPS[k].t:""}</div>
     <div class="row" style="justify-content:center;gap:6px;flex-wrap:wrap;margin:4px 0 12px">${mus.map(m=>`<span class="pill" style="border-color:#ff8a3d;color:#ffb27d">● ${m}</span>`).join("")}</div>
     <div class="seg" id="segVel" style="max-width:260px;margin:0 auto"><button class="on" data-v="1">Normal</button><button data-v="0.4">Cámara lenta</button></div>
     <div class="card" style="margin-top:14px;text-align:left">
@@ -1473,6 +1550,8 @@ function abrirZoom(k){
     <p class="sub" style="margin-top:10px;font-size:12px">La flecha verde marca el movimiento. En naranja, los músculos que trabajas.</p>
    </div>`;
   $("zoom").classList.add("on");
+  if($("segVista"))$("segVista").querySelectorAll("button").forEach(b=>b.onclick=()=>{$("segVista").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
+    const t=b.dataset.v==="t";$("zfig").innerHTML=t?topSVG(k,300):demoSVG(k,300,{big:true}).replace('class="demo"','class="demo" data-z="1"');$("ztopTip").style.display=t?"block":"none";});
   $("segVel").querySelectorAll("button").forEach(b=>b.onclick=()=>{velZoom=+b.dataset.v;$("segVel").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));});
   try{if(!hs().zoom)history.pushState({zoom:1,modal:$("modal").classList.contains("on")?1:0},"");}catch(err){}
 }
