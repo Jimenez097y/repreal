@@ -1235,7 +1235,7 @@ const DEMOS={
   zancadaAtras:{f:[PAR,F(60,180,[5,5],[-5,-5],[75,-5],[-25,-95])],d:1600,p:"silla2"},
   flexion:{f:[PLA,PLAB],d:1300},
   flexAbierta:{f:[PLA,PLAB],d:1300},
-  flexPared:{f:[F(52,162,[100,100],[98,98],[-12,-12],[-14,-14]),F(57,165,[-25,135],[-28,132],[-16,-16],[-18,-18])],d:1500,p:"pared"},
+  flexPared:{f:[F(52,162,[100,100],[98,98],[-12,-12],[-14,-14]),F(64,160,[120,30],[118,32],[-20,-20],[-22,-22])],d:1500,p:"pared"},
   flexInclinada:{f:[F(55,125,[25,25],[28,28],[-55,-55],[-57,-57]),F(57,112,[-120,60],[-118,60],[-66,-66],[-68,-68])],d:1500,p:"silla3"},
   plancha:{f:[F(60,98,[0,90],[3,90],[-81,-81],[-83,-83]),F(60,99,[0,90],[3,90],[-80,-80],[-82,-82])],d:1500},
   planchaRod:{f:[F(60,112,[0,90],[3,90],[-40,-95],[-42,-95]),F(60,113,[0,90],[3,90],[-40,-95],[-42,-95])],d:1500},
@@ -1259,7 +1259,7 @@ const DEMOS={
   talones:{f:[F(60,-90,[90,90],[88,88],[170,95],[166,95]),F(60,-90,[90,90],[88,88],[125,20],[166,95]),F(60,-90,[90,90],[88,88],[170,95],[166,95]),F(60,-90,[90,90],[88,88],[166,95],[125,20])],d:1500},
   planchaLat:{f:[F(60,112,[0,90],[178,178],[-68,-68],[-70,-70]),F(60,114,[0,90],[178,178],[-66,-66],[-68,-68])],d:1500},
   planchaLatRod:{f:[F(60,122,[0,90],[178,178],[-50,-120],[-52,-120]),F(60,124,[0,90],[178,178],[-50,-120],[-52,-120])],d:1500},
-  deadbug:{f:[F(60,-90,[180,180],[178,178],[178,92],[176,92]),F(60,-90,[-100,-100],[178,178],[178,92],[100,100]),F(60,-90,[180,180],[178,178],[178,92],[176,92]),F(60,-90,[180,180],[-100,-100],[100,100],[176,92])],d:2000},
+  deadbug:{f:[F(60,-90,[178,178],[176,176],[176,90],[172,90]),F(60,-90,[-132,-132],[176,176],[176,90],[104,104]),F(60,-90,[178,178],[176,176],[176,90],[172,90]),F(60,-90,[176,176],[-132,-132],[104,104],[172,90])],d:2200},
   skater:{f:[F(45,165,[60,60],[-60,-60],[5,5],[-40,-100],{up:2}),F(75,165,[-60,-60],[60,60],[40,100],[-5,-5],{up:2})],d:900},
   toquesLat:{f:[FRE,F(60,180,[60,60],[-20,-10],[30,30],[-6,-6]),FRE,F(60,180,[20,10],[-60,-60],[6,6],[-30,-30])],d:1200},
   boxeo:{f:[F(60,175,[90,90],[20,160],[25,0],[-20,-5]),F(60,175,[20,160],[90,90],[25,0],[-20,-5])],d:700},
@@ -1377,6 +1377,14 @@ function puntos(f,fr){
   return P;
 }
 const fx=v=>v.toFixed(1);
+function ghostSVG(B,A,k){
+  /* solo las partes que se mueven, como contorno punteado */
+  const mov=(a,b)=>Math.hypot(B[a][0]-A[a][0],B[a][1]-A[a][1])>6||Math.hypot(B[b][0]-A[b][0],B[b][1]-A[b][1])>6;
+  const seg=[["s1","e1"],["e1","m1"],["s2","e2"],["e2","m2"],["c1","k1"],["k1","p1"],["c2","k2"],["k2","p2"],["hip","n"]];
+  let s="";seg.forEach(([a,b])=>{if(mov(a,b))s+=`<line x1="${fx(B[a][0])}" y1="${fx(B[a][1])}" x2="${fx(B[b][0])}" y2="${fx(B[b][1])}" stroke="#c6ff3d" stroke-width="5" stroke-linecap="round" stroke-dasharray="1 7" opacity=".85"/>`;});
+  if(Math.hypot(B.h[0]-A.h[0],B.h[1]-A.h[1])>6)s+=`<circle cx="${fx(B.h[0])}" cy="${fx(B.h[1])}" r="7.5" fill="none" stroke="#c6ff3d" stroke-width="2" stroke-dasharray="2 3" opacity=".85"/>`;
+  return s;
+}
 function figSVG(P,k,o={}){
   const fr=FRENTE.has(k),mus=o.ghost?[]:musDe(k);
   const piel=o.ghost?"#c6ff3d":"#e9ecef",atr=o.ghost?"#c6ff3d":"#5d6572",hi="#ff8a3d",hiA="#b8642e";
@@ -1431,7 +1439,7 @@ const cacheMeta={};
 function demoSVG(k,size,opt={}){
   const D=DEMOS[k]; if(!D) return "";
   const M=cacheMeta[k]||(cacheMeta[k]=poseMeta(k));
-  const extra=opt.big?`${figSVG(M.B,k,{ghost:true})}${flechaSVG(M.A,M.B)}`:(size>=100?flechaSVG(M.A,M.B):"");
+  const extra=opt.big?`${flechaSVG(M.A,M.B)}`:(size>=100?flechaSVG(M.A,M.B):"");
   return `<svg class="demo" data-k="${k}" width="${size}" height="${size}" viewBox="0 -8 120 124" style="cursor:zoom-in">${propSVG(D.p)}<line x1="6" y1="110" x2="114" y2="110" stroke="#2a2f37" stroke-width="2"/>${extra}<g class="fig"></g></svg>`;
 }
 function dibujaFig(g,P,k){g.innerHTML=figSVG(P,k||g.closest("svg").dataset.k);}
@@ -1462,7 +1470,7 @@ function abrirZoom(k){
       ${G[1]?`<div class="tip ok">✅ <b>Clave:</b> ${G[1]}</div>`:""}
       ${G[2]?`<div class="tip no">❌ <b>Evita:</b> ${G[2]}</div>`:""}
     </div>
-    <p class="sub" style="margin-top:10px;font-size:12px">La figura verde clara es la posición a la que llegas. En naranja, los músculos que trabajas.</p>
+    <p class="sub" style="margin-top:10px;font-size:12px">La flecha verde marca el movimiento. En naranja, los músculos que trabajas.</p>
    </div>`;
   $("zoom").classList.add("on");
   $("segVel").querySelectorAll("button").forEach(b=>b.onclick=()=>{velZoom=+b.dataset.v;$("segVel").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));});
