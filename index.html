@@ -152,6 +152,7 @@ nav button.on{color:var(--acc)}
     <h2>Te toca hoy</h2>
     <div class="card hero" id="sugerida"></div>
     <div class="card rt" style="margin-top:10px" onclick="document.querySelector('nav button[data-v=comida]').click()" id="hoyComida"></div>
+    <div class="card rt" style="margin-top:10px" id="hoyCama"></div>
     <div class="card rt" style="margin-top:10px" onclick="caminata()">
       <div id="demoCam"></div>
       <div class="tx"><b>¿Saliste a caminar?</b><div class="sub">Regístralo: también suma a tu racha</div></div>
@@ -332,6 +333,11 @@ const EJ = {
   bisagra:{n:"Bisagra de cadera",t:"Rodillas un poco dobladas, lleva la cadera atrás con espalda recta y vuelve."},
   abduccion:{n:"Elevación lateral de pierna",t:"De pie, apoyado en la pared, sube una pierna al costado. Alterna."},
   caminata:{n:"Caminata",t:"A paso ligero, que puedas hablar pero no cantar."},
+  elevPierna1:{n:"Elevación de una pierna",t:"Boca arriba, una rodilla doblada. Sube la pierna estirada hasta la altura de la otra rodilla y baja lento."},
+  tijeras:{n:"Tijeras",t:"Boca arriba, piernas estiradas en el aire. Sube una y baja la otra, alternando sin tocar la cama."},
+  elevLatLado:{n:"Pierna de lado",t:"Acostado de lado, cabeza sobre el brazo. Sube la pierna de arriba estirada y baja lento. Cambia de lado a la mitad."},
+  sentCama:{n:"Sentadilla a la cama",t:"Desde el borde de la cama, párate y vuelve a sentarte despacio, sin dejarte caer."},
+  extRodilla:{n:"Extensión de rodilla",t:"Sentado al borde de la cama, estira una pierna, aguanta 2 segundos y baja. Alterna."},
   circHip:{n:"Círculos de cadera",t:"Manos en la cintura, dibuja círculos amplios con la cadera. Cambia de sentido a la mitad."},
   balPierna:{n:"Balanceo de piernas",t:"Apóyate en la pared y balancea una pierna adelante y atrás. Cambia a la mitad."},
   rotTronco:{n:"Rotación de tronco",t:"Pies fijos, gira el torso de lado a lado soltando los brazos."},
@@ -350,12 +356,15 @@ const EJ = {
   cadera:{n:"Apertura de cadera",t:"Zancada baja, empuja la cadera al frente. Cambia a la mitad."},
   torsion:{n:"Torsión acostado",t:"Boca arriba, rodillas a un lado, mirada al otro. Cambia a la mitad."}
 };
+const CAMA_COPIA={puenteC:"puente",talonesC:"talones",deadbugC:"deadbug",supermanC:"superman"};
 const RUT = [
   {id:"full",n:"Full body quemagrasa",c:"#c6ff3d",ab:"FB",d:"Todo el cuerpo y cardio. La base para bajar grasa.",met:8,cal:["marcha","cuello","circHip","rotTronco","balPierna"],vc:["cuadri","isquio","estPecho","estHombro","nino"],ej:["jj","sentadilla","flexion","zancada","escalador","plancha","burpee"]},
   {id:"piernas",n:"Piernas y glúteos",c:"#ff6b3d",ab:"PG",d:"Los músculos más grandes: más gasto de energía.",met:6,cal:["marcha","circHip","balPierna","tobillos","rotTronco"],vc:["cuadri","isquio","fig4","estPantorrilla","cadera"],ej:["sentadilla","zancadaAtras","puente","sentPulso","sillaPared","pantorrilla"]},
   {id:"superior",n:"Pecho, brazos y hombros",c:"#4fb3ff",ab:"TS",d:"Tren superior con tu peso y una silla.",met:5.5,cal:["marcha","cuello","rotTronco","gato"],vc:["estPecho","estTriceps","estHombro","nino"],ej:["flexion","fondos","pike","toqueHombro","flexAbierta","superman"]},
   {id:"core",n:"Abdomen y core",c:"#ffd23d",ab:"AB",d:"Zona media firme y espalda protegida.",met:4.5,cal:["marcha","rotTronco","gato","circHip"],vc:["cobra","torsion","fig4","nino"],ej:["crunch","bici","elevPiernas","plancha","planchaLat","deadbug"]},
   {id:"hiit",n:"HIIT express",nb:"Cardio sin saltos",c:"#ff3d8b",ab:"HI",d:"Corto e intenso para días con poco tiempo.",met:9,cal:["marcha","cuello","circHip","balPierna","tobillos"],vc:["cuadri","isquio","estPantorrilla","estPecho","nino"],ej:["rodillas","skater","sentSalto","boxeo","escalador"]},
+  {id:"camaM",n:"En la cama · mañana",c:"#ffd23d",ab:"☀",d:"Para activarte apenas despiertas, sin salir de la cama.",met:3.5,cama:1,cal:["cuello","gato"],vc:["fig4","torsion"],ej:["puenteC","elevPierna1","tijeras","elevLatLado","supermanC","sentCama","extRodilla"]},
+  {id:"camaN",n:"En la cama · noche",c:"#9d8bff",ab:"☾",d:"Suave, para soltar el cuerpo antes de dormir.",met:2.8,cama:1,cal:["cuello"],vc:["fig4","torsion","nino"],ej:["puenteC","talonesC","elevLatLado","deadbugC","elevPierna1"]},
   {id:"movilidad",n:"Movilidad y estiramiento",c:"#9d8bff",ab:"MV",d:"Descanso activo. Ideal después de un día pesado.",met:2.5,fijo:{w:45,r:10,rondas:1},ej:["cuello","gato","cadera","isquio","cuadri","torsion","nino"]}
 ];
 
@@ -389,6 +398,7 @@ const CNT={
   puente:{j:"hip",ini:a=>a<140,meta:a=>a>160,lado:true},
   elevPiernas:{j:"hipAnk",ini:a=>a>150,meta:a=>a<115,lado:true},
   sentSilla:{j:"knee",ini:a=>a>155,meta:a=>a<120},
+  sentCama:{j:"knee",ini:a=>a>155,meta:a=>a<120},
   sentPress:{j:"knee",ini:a=>a>155,meta:a=>a<115},
   flexPared:{j:"elbow",ini:a=>a>145,meta:a=>a<110,lado:true},
   flexInclinada:{j:"elbow",ini:a=>a>150,meta:a=>a<105,lado:true},
@@ -477,7 +487,7 @@ function renderHoy(){
   const p=pesoActual(); $("s-peso").textContent=p?p:"—";
   // sugerida: la que hace más tiempo no se hace (movilidad solo si entrenó ayer y hoy no)
   const hechaHoy=S.sesiones.some(s=>s.f===hoyStr());
-  let cand=RUT.filter(x=>x.id!=="movilidad");
+  let cand=RUT.filter(x=>x.id!=="movilidad"&&!x.cama);
   cand.sort((a,b)=>{const da=diasDesde(a.id),db=diasDesde(b.id);return (db===null?999:db)-(da===null?999:da);});
   let sug=cand.find(x=>diasDesde(x.id)===null)||cand[cand.length-1];
   cand.sort((a,b)=>{const da=diasDesde(a.id),db=diasDesde(b.id);return (db===null?999:db)-(da===null?999:da)}).reverse();
@@ -485,6 +495,9 @@ function renderHoy(){
   if(r>=3 && !hechaHoy) sug=RUT.find(x=>x.id==="movilidad");
   if(!S.sesiones.length) sug=RUT[0];
   {const m=metaKcal(),c=comidoDe(hoyStr());$("hoyComida").innerHTML=`<div class="cthumb">🍽️</div><div class="tx"><b>${m?fmt(c)+" / "+fmt(m)+" kcal":"Registra tu comida"}</b><div class="sub">${m?(comidasDe(hoyStr()).length+" comida"+(comidasDe(hoyStr()).length===1?"":"s")+" hoy · 🔥 "+fmt(ejercicioDe(hoyStr()))+" kcal de ejercicio"):"Completa tu perfil y sube la foto de tu plato"}</div></div><span class="pill on">+</span>`;}
+  {const h=new Date().getHours(),id=h>=17||h<4?"camaN":"camaM",r=RUT.find(x=>x.id===id);
+   $("hoyCama").onclick=()=>detalle(id);
+   $("hoyCama").innerHTML=`<div class="ic" style="background:${r.c}">${r.ab}</div><div class="tx"><b>${id==="camaN"?"¿Ya en cama? Rutina de noche":"¿Sin ganas de levantarte?"}</b><div class="sub">${nomR(r)} · ${minTxt(duracion(r))} · sin salir de la cama</div></div><span class="pill on">▶</span>`;}
   if(!$("demoCam").innerHTML) $("demoCam").innerHTML=demoSVG("caminata",48);
   $("sugerida").innerHTML=`<div class="tag">${hechaHoy?"¡Ya entrenaste hoy! ¿Otra más?":(r>=3?"Llevas "+r+" días seguidos: toca descanso activo":"Recomendada")}</div>
     <h3>${nomR(sug)}</h3>${S.plan&&!sug.fijo?`<div class="sub" style="color:var(--acc)">Plan: semana ${semana()} de 4${S.bajo?" · bajo impacto":""}</div>`:""}<div class="sub">${minTxt(duracion(sug))} · ${sug.ej.length} ejercicios · ${lastTxt(sug.id)}</div>
@@ -924,7 +937,7 @@ $("btnComparar").onclick=async()=>{const F=await fotosTodas();if(F.length<2)retu
 const MET={jj:8,jjPaso:5,sentadilla:5,sentSilla:4,sentPulso:5,sentSalto:8,sentPress:5.5,zancada:5,zancadaAtras:4.5,flexion:4.5,flexAbierta:4.5,flexPared:3,flexInclinada:3.5,
   plancha:3.8,planchaRod:3,escalador:8,escaladorSilla:5,burpee:8,rodillas:8,marcha:4.5,puente:3.5,sillaPared:4,pantorrilla:3,fondos:4,pike:4.5,pressBotellas:3.5,
   toqueHombro:4,toqueHombroRod:3.5,superman:3,crunch:3.8,bici:4,elevPiernas:3.5,talones:3,planchaLat:3.5,planchaLatRod:3,deadbug:3,skater:7.5,toquesLat:4.5,
-  boxeo:6,bisagra:3.5,abduccion:3,caminata:4.3,circHip:3.5,balPierna:3.5,rotTronco:3,tobillos:2.5,cuello:2.5};
+  boxeo:6,bisagra:3.5,elevPierna1:3,tijeras:3.5,elevLatLado:3,sentCama:4,extRodilla:2.5,abduccion:3,caminata:4.3,circHip:3.5,balPierna:3.5,rotTronco:3,tobillos:2.5,cuello:2.5};
 const metDe=k=>MET[k]||2.3;            // estiramientos ≈ 2.3
 const MET_DESC=1.5;
 const kgCalc=()=>pesoActual()||75;
@@ -1282,6 +1295,11 @@ const DEMOS={
   estPantorrilla:{f:[F(58,160,[110,110],[108,108],[30,-5],[-28,-28]),F(60,158,[112,112],[110,110],[34,-5],[-30,-30])],d:2400,p:"pared"},
   cobra:{f:[F(60,-112,[5,5],[3,3],[90,90],[88,88]),F(60,-122,[0,0],[-2,-2],[90,90],[88,88])],d:2400},
   fig4:{f:[F(60,-90,[100,140],[98,138],[150,20],[120,85]),F(60,-90,[105,145],[103,143],[158,25],[128,88])],d:2400},
+  elevPierna1:{f:[F(60,-90,[90,90],[88,88],[92,92],[140,10]),F(60,-90,[90,90],[88,88],[148,148],[140,10])],d:1500,p:"cama",alto:9},
+  tijeras:{f:[F(60,-90,[90,90],[88,88],[142,142],[118,118]),F(60,-90,[90,90],[88,88],[118,118],[142,142])],d:1100,p:"cama",alto:9},
+  elevLatLado:{f:[F(60,-90,[-155,-40],[95,95],[93,93],[92,92]),F(60,-90,[-155,-40],[95,95],[128,128],[92,92])],d:1500,p:"cama",alto:9},
+  sentCama:{f:[F(62,180,[95,95],[85,85],[3,3],[-3,-3]),F(52,150,[95,95],[85,85],[90,0],[88,-3])],d:1700,p:"camaB"},
+  extRodilla:{f:[F(52,178,[30,10],[25,5],[90,0],[88,-3]),F(52,178,[30,10],[25,5],[92,92],[88,-3])],d:1500,p:"camaB"},
   caminata:{f:[F(60,180,[30,40],[-30,-20],[25,0],[-20,-5]),F(60,180,[-30,-20],[30,40],[-20,-5],[25,0])],d:1100}
 };
 function propSVG(p){
@@ -1290,6 +1308,8 @@ function propSVG(p){
   if(p==="silla2")return `<path ${c} d="M82 70 H100 M84 70 V108 M98 70 V108 M100 70 V44"/>`;
   if(p==="silla3")return `<path ${c} d="M88 72 H110 M90 72 V108 M108 72 V108 M110 72 V46"/>`;
   if(p==="sillaB")return `<path ${c} d="M22 72 H46 M24 72 V108 M44 72 V108 M22 72 V46"/>`;
+  if(p==="cama")return `<rect x="4" y="100" width="112" height="9" rx="4" fill="#2c3442"/><rect x="6" y="94" width="20" height="7" rx="3.5" fill="#3d4757"/>`;
+  if(p==="camaB")return `<rect x="2" y="86" width="50" height="11" rx="4" fill="#2c3442"/><rect x="4" y="80" width="16" height="7" rx="3.5" fill="#3d4757"/><path d="M8 97 V108 M46 97 V108" stroke="#3a414c" stroke-width="3"/>`;
   if(p==="pared")return `<path ${c} d="M93 20 V108"/>`;
   if(p==="paredI")return `<path ${c} d="M40 20 V108"/>`;
   return "";
@@ -1343,6 +1363,11 @@ const GUIA={
   abduccion:["G","Sube la pierna sin inclinar el cuerpo","Girar la punta del pie hacia arriba"],
   caminata:["C","Paso ligero, brazos activos","Mirar el celular al caminar"],
   circHip:["M","Círculos amplios y lentos","Mover los hombros"],
+  elevPierna1:["A Q","Espalda baja pegada a la cama","Subir la pierna con impulso"],
+  tijeras:["A","Movimientos cortos y controlados","Arquear la espalda baja"],
+  elevLatLado:["G","Pierna estirada y punta del pie al frente","Girar la cadera hacia atrás"],
+  sentCama:["Q G","Pies firmes en el piso, peso en los talones","Impulsarte con los brazos"],
+  extRodilla:["Q","Estira del todo y aprieta el muslo","Balancear la pierna"],
   balPierna:["M I","Balanceo suave, sin forzar","Arquear la espalda"],
   rotTronco:["M E","Pies fijos, gira el torso","Girar con brusquedad"],
   tobillos:["M P","Círculos completos en ambos sentidos","Apurarte"],
@@ -1432,9 +1457,9 @@ function flechaSVG(A,B){
   return `<g opacity=".9"><path d="M${fx(p0[0])} ${fx(p0[1])} Q${fx(cx)} ${fx(cy)} ${fx(p1[0])} ${fx(p1[1])}" fill="none" stroke="#c6ff3d" stroke-width="2.4" stroke-dasharray="4 3" stroke-linecap="round"/>`+
     head(p1,[p1[0]-cx,p1[1]-cy])+head(p0,[p0[0]-cx,p0[1]-cy])+`</g>`;
 }
-function poseMeta(k){const D=DEMOS[k],fr=FRENTE.has(k),A=puntos(D.f[0],fr);let bi=0,dm=-1;
-  D.f.forEach((f,i)=>{if(!i)return;const P=puntos(f,fr);let d=0;["m1","m2","p1","p2","k1","k2","h"].forEach(j=>d+=Math.hypot(P[j][0]-A[j][0],P[j][1]-A[j][1]));if(d>dm){dm=d;bi=i;}});
-  return {A,B:puntos(D.f[bi],fr)};}
+function poseMeta(k){const D=DEMOS[k],fr=FRENTE.has(k),A=puntos(conAlto(k,D.f[0]),fr);let bi=0,dm=-1;
+  D.f.forEach((f,i)=>{if(!i)return;const P=puntos(conAlto(k,f),fr);let d=0;["m1","m2","p1","p2","k1","k2","h"].forEach(j=>d+=Math.hypot(P[j][0]-A[j][0],P[j][1]-A[j][1]));if(d>dm){dm=d;bi=i;}});
+  return {A,B:puntos(conAlto(k,D.f[bi]),fr)};}
 const cacheMeta={};
 function demoSVG(k,size,opt={}){
   const D=DEMOS[k]; if(!D) return "";
@@ -1444,7 +1469,8 @@ function demoSVG(k,size,opt={}){
 }
 function dibujaFig(g,P,k){g.innerHTML=figSVG(P,k||g.closest("svg").dataset.k);}
 function poseEn(k,ms){const D=DEMOS[k],n=D.f.length,T=D.d*n/2,ph=(ms%T)/T*n,i=Math.floor(ph),t=ph-i;
-  const e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;return puntos(mezcla(D.f[i],D.f[(i+1)%n],e),FRENTE.has(k));}
+  const e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;const f=mezcla(D.f[i],D.f[(i+1)%n],e);if(D.alto)f.up+=D.alto;return puntos(f,FRENTE.has(k));}
+const conAlto=(k,f)=>DEMOS[k].alto?{...f,up:(f.up||0)+DEMOS[k].alto}:f;
 let demoRAF=null,velZoom=1,tZoom=0,tPrev=performance.now();
 function animarDemos(){
   const now=performance.now();tZoom+=(now-tPrev)*velZoom;tPrev=now;
@@ -1563,6 +1589,8 @@ window.addEventListener("popstate",()=>{if($("zoom").classList.contains("on")&&!
 document.addEventListener("click",e=>{const s=e.target.closest&&e.target.closest("svg.demo");if(s&&!s.dataset.z){e.stopPropagation();abrirZoom(s.dataset.k);}},true);
 
 $("inNombre").value=S.nombre||"";$("inNombre").onchange=e=>{S.nombre=e.target.value.trim().slice(0,30);save();renderHoy();};
+Object.entries(CAMA_COPIA).forEach(([n,o])=>{EJ[n]={n:EJ[o].n,t:EJ[o].t+" Sobre la cama."};if(GUIA[o])GUIA[n]=GUIA[o];if(MET[o])MET[n]=Math.max(2,MET[o]-.5);
+  if(CNT[o])CNT[n]=CNT[o];if(TOPS[o])TOPS[n]=TOPS[o];DEMOS[n]={...DEMOS[o],p:"cama",alto:9};});
 renderAll();renderFotos();animarDemos();
 window.addEventListener("resize",renderChart);
 </script>
