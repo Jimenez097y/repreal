@@ -346,6 +346,7 @@ const EJ = {
   respiracion:{n:"Respiración 4-6",t:"Inhala por la nariz en 4 tiempos, exhala lento por la boca en 6. Suelta los hombros."},
   rodillasPecho:{n:"Rodillas al pecho",t:"Boca arriba, abraza tus rodillas y mécete suave de lado a lado."},
   mariposa:{n:"Mariposa acostado",t:"Boca arriba, junta las plantas de los pies y deja caer las rodillas a los lados. Respira."},
+  piernasAlm:{n:"Piernas en almohadas",t:"Boca arriba, pon 2 almohadas o una cobija doblada bajo las pantorrillas. Suelta todo el cuerpo y respira lento."},
   piernasPared:{n:"Piernas en la pared",t:"Acuéstate con la cadera cerca de la pared y sube las piernas apoyadas. Relaja todo el cuerpo."},
   menton:{n:"Mentón atrás",t:"Sentado o acostado, lleva el mentón hacia atrás como haciendo papada. Alinea el cuello."},
   circHip:{n:"Círculos de cadera",t:"Manos en la cintura, dibuja círculos amplios con la cadera. Cambia de sentido a la mitad."},
@@ -375,7 +376,7 @@ const RUT = [
   {id:"hiit",n:"HIIT express",nb:"Cardio sin saltos",c:"#ff3d8b",ab:"HI",d:"Corto e intenso para días con poco tiempo.",met:9,cal:["marcha","cuello","circHip","balPierna","tobillos"],vc:["cuadri","isquio","estPantorrilla","estPecho","nino"],ej:["rodillas","skater","sentSalto","boxeo","escalador"]},
   {id:"camaM",n:"En la cama · mañana",c:"#ffd23d",ab:"☀",d:"Para activarte apenas despiertas, sin salir de la cama.",met:3.5,cama:1,cal:["cuello","gato"],vc:["fig4","torsion"],ej:["puenteC","elevPierna1","tijeras","elevLatLado","supermanC","sentCama","extRodilla"]},
   {id:"camaN",n:"En la cama · noche",c:"#9d8bff",ab:"☾",d:"Suave, para soltar el cuerpo antes de dormir.",met:2.8,cama:1,cal:["cuello"],vc:["fig4","torsion","nino"],ej:["puenteC","talonesC","elevLatLado","deadbugC","elevPierna1"]},
-  {id:"dormir",n:"Relajación para dormir",c:"#4fb3ff",ab:"Zz",d:"Estiramientos suaves, postura y respiración para soltar tensión y dormir mejor.",met:2,cama:1,suave:1,fijo:{w:45,r:6,rondas:1},dur:{respiracion:60},ej:["respiracion","menton","cuello","rodillasPecho","gato","nino","cobra","torsion","fig4","mariposa","piernasPared","respiracion"]},
+  {id:"dormir",n:"Relajación para dormir",c:"#4fb3ff",ab:"Zz",d:"Estiramientos suaves, postura y respiración para soltar tensión y dormir mejor.",met:2,cama:1,suave:1,fijo:{w:45,r:6,rondas:1},dur:{respiracion:60},ej:["respiracion","menton","cuello","rodillasPecho","gato","nino","cobra","torsion","fig4","mariposa","piernasAlm","respiracion"]},
   {id:"movilidad",n:"Movilidad y estiramiento",c:"#9d8bff",ab:"MV",d:"Descanso activo. Ideal después de un día pesado.",met:2.5,fijo:{w:45,r:10,rondas:1},ej:["cuello","gato","cadera","isquio","cuadri","torsion","nino"]}
 ];
 
@@ -1420,6 +1421,7 @@ const DEMOS={
   menton:{f:[F(60,180,[5,5],[-5,-5],[2,2],[-2,-2],{cab:194}),F(60,180,[5,5],[-5,-5],[2,2],[-2,-2],{cab:174})],d:1800},
   rodillasPecho:{f:[F(60,-90,[125,165],[122,162],[168,45],[163,40]),F(60,-95,[125,165],[122,162],[160,40],[156,36])],d:1800,p:"cama",alto:9},
   mariposa:{f:[F(60,-90,[95,95],[93,93],[125,20],[120,15]),F(60,-90,[95,95],[93,93],[110,25],[105,20])],d:3000,p:"cama",alto:9},
+  piernasAlm:{f:[F(60,-90,[100,100],[98,98],[115,92],[112,92]),F(60,-90,[100,100],[98,98],[115,92],[112,92],{up:1})],d:4500,p:"camaAlm",alto:9},
   piernasPared:{f:[F(60,-90,[-120,-120],[-118,-118],[178,178],[176,176]),F(60,-90,[-125,-125],[-123,-123],[178,178],[176,176],{up:1})],d:4000,p:"paredD"},
   caminata:{f:[F(60,180,[30,40],[-30,-20],[25,0],[-20,-5]),F(60,180,[-30,-20],[30,40],[-20,-5],[25,0])],d:1100}
 };
@@ -1431,6 +1433,7 @@ function propSVG(p){
   if(p==="sillaB")return `<path ${c} d="M22 72 H46 M24 72 V108 M44 72 V108 M22 72 V46"/>`;
   if(p==="cama")return `<rect x="4" y="100" width="112" height="9" rx="4" fill="#2c3442"/><rect x="6" y="94" width="20" height="7" rx="3.5" fill="#3d4757"/>`;
   if(p==="camaB")return `<rect x="2" y="86" width="50" height="11" rx="4" fill="#2c3442"/><rect x="4" y="80" width="16" height="7" rx="3.5" fill="#3d4757"/><path d="M8 97 V108 M46 97 V108" stroke="#3a414c" stroke-width="3"/>`;
+  if(p==="camaAlm")return `<rect x="4" y="100" width="112" height="9" rx="4" fill="#2c3442"/><rect x="6" y="94" width="20" height="7" rx="3.5" fill="#3d4757"/><rect x="74" y="84" width="34" height="16" rx="6" fill="#3d4757"/>`;
   if(p==="paredD")return `<path stroke="#3a414c" stroke-width="3" fill="none" stroke-linecap="round" d="M67 14 V108"/>`;
   if(p==="pared")return `<path ${c} d="M93 20 V108"/>`;
   if(p==="paredI")return `<path ${c} d="M40 20 V108"/>`;
@@ -1488,6 +1491,7 @@ const GUIA={
   respiracion:["M","Exhala más largo de lo que inhalas","Forzar o aguantar el aire"],
   rodillasPecho:["M E","Mécete despacio, suelta la espalda baja","Jalar fuerte las rodillas"],
   mariposa:["M","Deja que la gravedad abra las rodillas","Empujar las rodillas hacia abajo"],
+  piernasAlm:["M","Rodillas un poco dobladas y relajadas","Tensar el cuello o los hombros"],
   piernasPared:["M","Respira lento y suelta los hombros","Bloquear las rodillas"],
   menton:["M E","Cuello largo, mirada al frente","Bajar la cabeza"],
   elevPierna1:["A Q","Espalda baja pegada a la cama","Subir la pierna con impulso"],
