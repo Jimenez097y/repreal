@@ -236,6 +236,7 @@ nav button.on{color:var(--acc)}
     <div class="card"><ul class="list" id="historial"></ul></div>
     <h2>Ajustes</h2>
     <div class="card">
+      <div id="ajVoz" style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--line)"></div>
       <div id="ajIA" style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--line)"></div>
       <div class="sub" style="margin-bottom:6px">Tu nombre</div>
       <input id="inNombre" placeholder="¿Cómo te llamas?" style="margin-bottom:14px">
@@ -259,6 +260,7 @@ nav button.on{color:var(--acc)}
 <div id="player">
   <div class="ptop">
     <button class="btn sm ghost" id="pSalir">✕ Salir</button>
+    <button class="pill" id="pVoz" style="padding:8px 10px;margin-left:auto;margin-right:10px">🔊</button>
     <span class="sub"><span id="pRec" style="color:#ff3d3d;font-weight:700;display:none">● REC </span><span id="pProg"></span><br><span id="pKcal" style="color:var(--acc);font-weight:700"></span></span>
   </div>
   <div class="bar"><i id="pBar"></i></div>
@@ -574,7 +576,7 @@ function renderChart(){
   if(S.meta) t+=` · Faltan ${Math.max(0,+(L.kg-S.meta).toFixed(1))} kg`;
   $("pesoResumen").textContent=t;
 }
-function renderAll(){renderHoy();renderRutinas();renderProgreso();renderComida();renderBalance();renderAjustesIA();renderAyuno();renderHoyAyuno();}
+function renderAll(){renderHoy();renderRutinas();renderProgreso();renderComida();renderBalance();renderAjustesIA();renderAjustesVoz();renderAyuno();renderHoyAyuno();}
 
 /* ===================== ACCIONES ===================== */
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
@@ -619,7 +621,19 @@ window.detalle=id=>{const r=RUT.find(x=>x.id===id),c=cfg(r);
 /* ===================== REPRODUCTOR ===================== */
 let PL=null, tick=null, actx=null, wake=null;
 function beep(f=880,d=.12,v=.25){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();const o=actx.createOscillator(),g=actx.createGain();o.frequency.value=f;o.connect(g);g.connect(actx.destination);g.gain.value=v;o.start();g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+d);o.stop(actx.currentTime+d);}catch(e){}}
-function hablar(t){try{const u=new SpeechSynthesisUtterance(t);u.lang="es-ES";u.rate=PL&&PL.r&&PL.r.suave?.85:1.1;speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}}
+let VOZ=null;
+function elegirVoz(){try{const vs=speechSynthesis.getVoices().filter(v=>/^es/i.test(v.lang));if(!vs.length)return;
+  const pref=[/es-(PE|MX|US|419)/i,/es-ES/i];const buena=v=>/(premium|enhanced|mejorad|natural|neural|google)/i.test(v.name);
+  VOZ=vs.find(v=>buena(v)&&pref[0].test(v.lang))||vs.find(v=>pref[0].test(v.lang))||vs.find(buena)||vs[0];}catch(e){}}
+try{elegirVoz();speechSynthesis.onvoiceschanged=elegirVoz;}catch(e){}
+const vozModo=()=>S.voz||"guia";
+function hablar(t,o={}){try{if(vozModo()==="off"||(o.guia&&vozModo()!=="guia"))return;
+  if(!window.speechSynthesis)return;const u=new SpeechSynthesisUtterance(t);if(VOZ){u.voice=VOZ;u.lang=VOZ.lang;}else u.lang="es-PE";
+  const suave=PL&&PL.r&&PL.r.suave;u.rate=suave?.85:1.02;u.pitch=1;u.volume=1;
+  if(!o.cola)speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}}
+function desbloquearVoz(){try{const u=new SpeechSynthesisUtterance(" ");u.volume=0;speechSynthesis.speak(u);speechSynthesis.resume&&speechSynthesis.resume();}catch(e){}}
+const ANIMO=["¡Vamos, tú puedes!","Bien, mantén la forma","Respira, no aguantes el aire","Eso, sigue así","Controla el movimiento","Ya casi, no te detengas"];
+const animo=()=>ANIMO[Math.floor(Math.random()*ANIMO.length)];
 function pasos(r,cam){const c=cfg(r),E=exs(r),CA=usaCal(r);
   const out=[{tipo:"prep",s:cam?PREP_CAM:PREP,k:CA?r.cal[0]:E[0]}];
   if(CA){r.cal.forEach((k,i)=>out.push({tipo:"cal",s:T_CAL,k,i}));out.push({tipo:"rest",s:10,k:E[0],ro:1});}
@@ -706,10 +720,10 @@ function detectar(){
 function contarRep(){const st=PL.p[PL.i];PL.cnt++;PL.totalReps++;PL.repsPor[st.k]=(PL.repsPor[st.k]||0)+1;
   beep(1200,.08);const falta=st.reps-PL.cnt;
   if(falta<=0){hablar(String(PL.cnt));beep(1500,.25);setTimeout(()=>avanzar(),500);}
-  else{hablar(falta<=3?"faltan "+falta:String(PL.cnt));pinta(false);}}
+  else{hablar(falta<=3?(falta===1?"¡Última!":"faltan "+falta):String(PL.cnt));if(PL.cnt===Math.ceil(st.reps/2))hablar(animo(),{guia:1,cola:1});pinta(false);}}
 function avanzar(){if(!PL)return;if(PL.i>=PL.p.length-1)return fin(false);PL.i++;PL.left=PL.p[PL.i].s;PL.cnt=0;PL.fase=null;PL.ema=null;if(!PL.r.suave)beep(PL.p[PL.i].tipo==="work"?1100:520,.3);pinta(true);}
 
-window.empezar=async id=>{const r=RUT.find(x=>x.id===id);
+window.empezar=async id=>{const r=RUT.find(x=>x.id===id);desbloquearVoz();
   try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();actx.resume();}catch(e){}
   let cam=false,conteo=false,err=null; REC=null;
   const quiereConteo=S.cam&&!r.fijo&&exs(r).some(k=>CNT[k]);
@@ -723,7 +737,7 @@ window.empezar=async id=>{const r=RUT.find(x=>x.id===id);
   if(S.plan&&!S.inicio){S.inicio=hoyStr();save();}
   PL.metaTotal=PL.p.reduce((a,s)=>a+(s.reps||0),0); PL.left=PL.p[0].s;
   try{wake=await navigator.wakeLock.request("screen");}catch(e){}
-  $("player").classList.add("on");icoPlay(true);pinta(true);clearInterval(tick);tick=setInterval(paso,1000);
+  $("player").classList.add("on");icoPlay(true);pintaVoz();pinta(true);clearInterval(tick);tick=setInterval(paso,1000);
   if(err){PL.run=false;icoPlay(false);avisoCam(err);const c=$("modal");const f=()=>{if(!c.classList.contains("on")){PL&&(PL.run=true);icoPlay(true);}else setTimeout(f,300);};setTimeout(f,300);}};
 function paso(){if(!PL||!PL.run)return;const st=PL.p[PL.i];
   if(st.tipo==="work")PL.hecho++;
@@ -732,7 +746,11 @@ function paso(){if(!PL||!PL.run)return;const st=PL.p[PL.i];
   if(st.reps){PL.left++;return;} // modo reps: cuenta tiempo hacia arriba, no avanza solo
   PL.left--;
   if(PL.r.suave&&st.k==="respiracion"&&st.tipo==="work"){const t=(st.s-PL.left)%10;if(t===0)hablar("Inhala");else if(t===4)hablar("Exhala lento");}
-  if(PL.left<=3&&PL.left>0&&!PL.r.suave)beep(660);
+  if(!PL.r.suave&&st.tipo==="work"){const ini=st.s-PL.left;
+    if(st.s>=20&&ini===Math.floor(st.s/2))hablar(/cambia/i.test(EJ[st.k].t)?"Cambia de lado":"Mitad. "+animo(),{guia:1});
+    else if(st.s>=25&&PL.left===10)hablar("Diez segundos",{guia:1});}
+  if((st.tipo==="vc"||st.tipo==="cal")&&st.s>=30&&st.s-PL.left===Math.floor(st.s/2)&&/cambia/i.test(EJ[st.k].t))hablar("Cambia de lado",{guia:1});
+  if(PL.left<=3&&PL.left>0&&!PL.r.suave){beep(660);if(vozModo()==="guia"&&st.tipo!=="work")hablar(String(PL.left),{cola:1});}
   if(PL.left<=0)avanzar();else pinta(false);}
 const RESP_SVG=`<svg width="150" height="150" viewBox="0 0 150 150" style="display:block;margin:6px auto 0"><circle cx="75" cy="75" r="60" fill="none" stroke="#1e2229" stroke-width="2"/><circle class="resp" cx="75" cy="75" r="60" fill="#4fb3ff" opacity=".35"/><circle class="resp" cx="75" cy="75" r="42" fill="#4fb3ff" opacity=".5"/></svg>`;
 function pinta(nuevo){const st=PL.p[PL.i],e=EJ[st.k],c=cfg(PL.r);
@@ -755,10 +773,28 @@ function pinta(nuevo){const st=PL.p[PL.i],e=EJ[st.k],c=cfg(PL.r);
   else $("pProg").textContent=(st.ro?"Ronda "+st.ro+"/"+c.rondas+" · ":"")+"Ejercicio "+Math.min(done+(st.tipo==="work"?1:0),w.length)+"/"+w.length;
   $("pBar").style.width=(100*done/w.length)+"%";
   if(nuevo&&REC)grabPausa(!(st.tipo==="work"&&PL.run));
-  if(nuevo){if(st.tipo==="work")hablar(st.reps?e.n+". "+st.reps+" repeticiones":e.n);else if(st.tipo==="rest")hablar(PL.p[PL.i-1]&&PL.p[PL.i-1].tipo==="cal"?"Listo el calentamiento. Prepárate para "+e.n:"Descanso. Sigue "+e.n);
-    else if(st.tipo==="cal")hablar((st.i===0?"Calentamiento. ":"")+e.n);else if(st.tipo==="vc")hablar((st.i===0?"Muy bien. Ahora a estirar. ":"")+e.n);else if(st.tipo==="prep")hablar((PL.cam?"Colócate frente a la cámara. ":"Prepárate. ")+e.n);}
+  if(nuevo)anunciar(st,e);
+}
+function anunciar(st,e){
+  const G=GUIA[st.k],clave=G&&G[1]?G[1]:"",prev=PL.p[PL.i-1];
+  const lado=/cambia/i.test(e.t)?" Cambia de lado a la mitad.":"";
+  if(st.tipo==="work"){
+    if(PL.r.suave){hablar(e.n+". "+(st.k==="respiracion"?"Sigue el círculo.":e.t.split(".")[0]+"."));return;}
+    hablar(st.reps?`${e.n}. ${st.reps} repeticiones.`:`${e.n}. ${st.s} segundos.`);
+    if(clave)hablar(clave+"."+lado,{guia:1,cola:1});
+  }else if(st.tipo==="rest"){
+    hablar(prev&&prev.tipo==="cal"?"Listo el calentamiento. Prepárate para "+e.n:"Descansa. Lo que sigue: "+e.n);
+    if(clave&&st.s>=15)hablar("Recuerda: "+clave,{guia:1,cola:1});
+  }else if(st.tipo==="ronda")hablar("Terminaste la ronda. Descansa un minuto. Toma agua.");
+  else if(st.tipo==="cal")hablar((st.i===0?"Empezamos calentando. ":"")+e.n+"."+lado);
+  else if(st.tipo==="vc")hablar((st.i===0?"Muy bien. Ahora a estirar, suave y respirando. ":"")+e.n+"."+lado);
+  else if(st.tipo==="prep")hablar((PL.cam?"Coloca el celular y ponte frente a la cámara. ":"Prepárate. ")+"Empezamos con "+e.n);
 }
 function icoPlay(run){$("pPlayIc").innerHTML=run?'<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>':'<path d="M7 4l13 8-13 8z"/>';}
+const VOZ_T={guia:"🔊 Guía",breve:"🔉 Breve",off:"🔇"};
+function pintaVoz(){const b=$("pVoz");if(b)b.textContent=VOZ_T[vozModo()];}
+$("pVoz").onclick=()=>{const o=["guia","breve","off"];S.voz=o[(o.indexOf(vozModo())+1)%3];save();pintaVoz();desbloquearVoz();
+  toast({guia:"Voz guía completa: tips, ánimo y cuentas",breve:"Voz breve: solo nombres de ejercicios",off:"Voz apagada"}[S.voz]);if(S.voz!=="off")hablar(S.voz==="guia"?"Voz guía activada":"Voz breve");renderAjustesVoz();};
 $("pPlay").onclick=()=>{PL.run=!PL.run;icoPlay(PL.run);if(REC)grabPausa(!(PL.run&&PL.p[PL.i].tipo==="work"));};
 $("pNextB").onclick=()=>{const st=PL.p[PL.i];if(st.reps&&PL.cnt<st.reps)PL.saltados++;avanzar();};
 $("pDuele").onclick=()=>{if(!PL)return;let st=PL.p[PL.i];
@@ -1262,6 +1298,16 @@ window.iaConfig=()=>{const c=iaGet();
     catch(e){$("iaEst").innerHTML=`<span style="color:#ffb27d">${iaError(e)}</span>`;}};
   if($("iaQuitar"))$("iaQuitar").onclick=()=>{iaSet({});cerrar();toast("Clave quitada");renderComida();renderAjustesIA();};
 };
+function renderAjustesVoz(){const el=$("ajVoz");if(!el)return;
+  el.innerHTML=`<b>🔊 Voz guía</b><div class="sub" style="margin:3px 0 8px">Te dice el ejercicio, el tip clave, cuándo cambiar de lado y te da ánimo.</div>
+   <div class="seg" id="segVoz">${[["guia","Completa"],["breve","Breve"],["off","Apagada"]].map(([v,n])=>`<button data-v="${v}" class="${vozModo()===v?"on":""}">${n}</button>`).join("")}</div>
+   <button class="btn sm ghost" style="margin-top:8px;width:100%" id="vozTest">▶ Probar voz</button>
+   <div class="sub" style="font-size:12px;margin-top:6px">¿No se escucha? Revisa que el celular no esté en silencio y sube el volumen.</div>`;
+  $("segVoz").querySelectorAll("button").forEach(b=>b.onclick=()=>{S.voz=b.dataset.v;save();renderAjustesVoz();});
+  $("vozTest").onclick=()=>{desbloquearVoz();if(vozModo()==="off"){toast("La voz está apagada");return;}
+    hablar("Hola"+(S.nombre?" "+S.nombre:"")+". Soy tu guía de RepReal. Sentadilla a la silla. Veinte segundos.");hablar("Baja lento, toca la silla y sube empujando con los talones.",{guia:1,cola:1});
+    setTimeout(()=>{if(!window.speechSynthesis||(!speechSynthesis.speaking&&!speechSynthesis.pending))toast("Tu navegador no tiene voz disponible. Prueba en Safari o Chrome.");},1500);};
+}
 function renderAjustesIA(){const el=$("ajIA");if(!el)return;el.innerHTML=`<div class="sw"><div><b>✨ Análisis de fotos con IA</b><div class="sub" style="margin-top:3px">${iaOk()?"Activo con tu clave de Google":"Desactivado · gratis con tu clave de Google"}</div></div><button class="btn sm ${iaOk()?"ghost":""}" onclick="iaConfig()">${iaOk()?"Editar":"Activar"}</button></div>`;}
 
 /* ===================== AYUNO INTERMITENTE ===================== */
