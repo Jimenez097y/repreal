@@ -120,6 +120,8 @@ nav button.on{color:var(--acc)}
 .ring svg{width:190px;height:190px}
 .ring .num{font-size:76px}
 .pdemo svg{display:block;margin:6px auto 0}
+.resp{transform-origin:75px 75px;animation:resp 10s ease-in-out infinite}
+@keyframes resp{0%{transform:scale(.45)}40%{transform:scale(1)}100%{transform:scale(.45)}}
 .cam .mini{position:absolute;right:8px;top:8px;background:rgba(14,16,19,.75);border-radius:12px}
 .ex .demo{flex:none;background:var(--card2);border-radius:12px}
 .galeria img{width:100%}
@@ -341,6 +343,11 @@ const EJ = {
   elevLatLado:{n:"Pierna de lado",t:"Acostado de lado, cabeza sobre el brazo. Sube la pierna de arriba estirada y baja lento. Cambia de lado a la mitad."},
   sentCama:{n:"Sentadilla a la cama",t:"Desde el borde de la cama, párate y vuelve a sentarte despacio, sin dejarte caer."},
   extRodilla:{n:"Extensión de rodilla",t:"Sentado al borde de la cama, estira una pierna, aguanta 2 segundos y baja. Alterna."},
+  respiracion:{n:"Respiración 4-6",t:"Inhala por la nariz en 4 tiempos, exhala lento por la boca en 6. Suelta los hombros."},
+  rodillasPecho:{n:"Rodillas al pecho",t:"Boca arriba, abraza tus rodillas y mécete suave de lado a lado."},
+  mariposa:{n:"Mariposa acostado",t:"Boca arriba, junta las plantas de los pies y deja caer las rodillas a los lados. Respira."},
+  piernasPared:{n:"Piernas en la pared",t:"Acuéstate con la cadera cerca de la pared y sube las piernas apoyadas. Relaja todo el cuerpo."},
+  menton:{n:"Mentón atrás",t:"Sentado o acostado, lleva el mentón hacia atrás como haciendo papada. Alinea el cuello."},
   circHip:{n:"Círculos de cadera",t:"Manos en la cintura, dibuja círculos amplios con la cadera. Cambia de sentido a la mitad."},
   balPierna:{n:"Balanceo de piernas",t:"Apóyate en la pared y balancea una pierna adelante y atrás. Cambia a la mitad."},
   rotTronco:{n:"Rotación de tronco",t:"Pies fijos, gira el torso de lado a lado soltando los brazos."},
@@ -368,6 +375,7 @@ const RUT = [
   {id:"hiit",n:"HIIT express",nb:"Cardio sin saltos",c:"#ff3d8b",ab:"HI",d:"Corto e intenso para días con poco tiempo.",met:9,cal:["marcha","cuello","circHip","balPierna","tobillos"],vc:["cuadri","isquio","estPantorrilla","estPecho","nino"],ej:["rodillas","skater","sentSalto","boxeo","escalador"]},
   {id:"camaM",n:"En la cama · mañana",c:"#ffd23d",ab:"☀",d:"Para activarte apenas despiertas, sin salir de la cama.",met:3.5,cama:1,cal:["cuello","gato"],vc:["fig4","torsion"],ej:["puenteC","elevPierna1","tijeras","elevLatLado","supermanC","sentCama","extRodilla"]},
   {id:"camaN",n:"En la cama · noche",c:"#9d8bff",ab:"☾",d:"Suave, para soltar el cuerpo antes de dormir.",met:2.8,cama:1,cal:["cuello"],vc:["fig4","torsion","nino"],ej:["puenteC","talonesC","elevLatLado","deadbugC","elevPierna1"]},
+  {id:"dormir",n:"Relajación para dormir",c:"#4fb3ff",ab:"Zz",d:"Estiramientos suaves, postura y respiración para soltar tensión y dormir mejor.",met:2,cama:1,suave:1,fijo:{w:45,r:6,rondas:1},dur:{respiracion:60},ej:["respiracion","menton","cuello","rodillasPecho","gato","nino","cobra","torsion","fig4","mariposa","piernasPared","respiracion"]},
   {id:"movilidad",n:"Movilidad y estiramiento",c:"#9d8bff",ab:"MV",d:"Descanso activo. Ideal después de un día pesado.",met:2.5,fijo:{w:45,r:10,rondas:1},ej:["cuello","gato","cadera","isquio","cuadri","torsion","nino"]}
 ];
 
@@ -465,7 +473,7 @@ function pesoActual(){return S.pesos.length?S.pesos[S.pesos.length-1].kg:null;}
 function cfg(r){ if(r.fijo) return r.fijo; if(S.plan){const p=PLAN[semana()-1];return {w:p.w,r:p.r,rondas:p.ro};} const i=INT.find(x=>x.k===S.int)||INT[0]; return {w:i.w,r:i.r,rondas:S.rondas}; }
 const usaCam=(r,k)=>S.cam&&!r.fijo&&!!CNT[k];
 function duracion(r){const c=cfg(r);const n=exs(r).length;
-  const w=exs(r).reduce((a,k)=>a+(usaCam(r,k)?metaReps(k)*(CNT[k].x2?1.2:3):c.w),0);
+  const w=exs(r).reduce((a,k)=>a+(usaCam(r,k)?metaReps(k)*(CNT[k].x2?1.2:3):(r.dur&&r.dur[k])||c.w),0);
   const extra=usaCal(r)?r.cal.length*T_CAL+10+r.vc.length*T_VC:0;
   return (S.cam?PREP_CAM:PREP) + c.rondas*(w+(n-1)*c.r) + (c.rondas-1)*ENTRE_RONDAS + extra;}
 const minTxt=s=>Math.round(s/60)+" min";
@@ -498,9 +506,9 @@ function renderHoy(){
   if(r>=3 && !hechaHoy) sug=RUT.find(x=>x.id==="movilidad");
   if(!S.sesiones.length) sug=RUT[0];
   {const m=metaKcal(),c=comidoDe(hoyStr());$("hoyComida").innerHTML=`<div class="cthumb">🍽️</div><div class="tx"><b>${m?fmt(c)+" / "+fmt(m)+" kcal":"Registra tu comida"}</b><div class="sub">${m?(comidasDe(hoyStr()).length+" comida"+(comidasDe(hoyStr()).length===1?"":"s")+" hoy · 🔥 "+fmt(ejercicioDe(hoyStr()))+" kcal de ejercicio"):"Completa tu perfil y sube la foto de tu plato"}</div></div><span class="pill on">+</span>`;}
-  {const h=new Date().getHours(),id=h>=17||h<4?"camaN":"camaM",r=RUT.find(x=>x.id===id);
+  {const h=new Date().getHours(),id=h>=20||h<4?"dormir":h>=17?"camaN":"camaM",r=RUT.find(x=>x.id===id);
    $("hoyCama").onclick=()=>detalle(id);
-   $("hoyCama").innerHTML=`<div class="ic" style="background:${r.c}">${r.ab}</div><div class="tx"><b>${id==="camaN"?"¿Ya en cama? Rutina de noche":"¿Sin ganas de levantarte?"}</b><div class="sub">${nomR(r)} · ${minTxt(duracion(r))} · sin salir de la cama</div></div><span class="pill on">▶</span>`;}
+   $("hoyCama").innerHTML=`<div class="ic" style="background:${r.c}">${r.ab}</div><div class="tx"><b>${id==="dormir"?"¿Lista la cama? Relájate para dormir":id==="camaN"?"¿Ya en cama? Rutina de noche":"¿Sin ganas de levantarte?"}</b><div class="sub">${nomR(r)} · ${minTxt(duracion(r))}${id==="dormir"?" · estiramientos y respiración":" · sin salir de la cama"}</div></div><span class="pill on">▶</span>`;}
   if(!$("demoCam").innerHTML) $("demoCam").innerHTML=demoSVG("caminata",48);
   $("sugerida").innerHTML=`<div class="tag">${hechaHoy?"¡Ya entrenaste hoy! ¿Otra más?":(r>=3?"Llevas "+r+" días seguidos: toca descanso activo":"Recomendada")}</div>
     <h3>${nomR(sug)}</h3>${S.plan&&!sug.fijo?`<div class="sub" style="color:var(--acc)">Plan: semana ${semana()} de 4${S.bajo?" · bajo impacto":""}</div>`:""}<div class="sub">${minTxt(duracion(sug))} · ${sug.ej.length} ejercicios · ${lastTxt(sug.id)}</div>
@@ -610,11 +618,11 @@ window.detalle=id=>{const r=RUT.find(x=>x.id===id),c=cfg(r);
 /* ===================== REPRODUCTOR ===================== */
 let PL=null, tick=null, actx=null, wake=null;
 function beep(f=880,d=.12,v=.25){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();const o=actx.createOscillator(),g=actx.createGain();o.frequency.value=f;o.connect(g);g.connect(actx.destination);g.gain.value=v;o.start();g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+d);o.stop(actx.currentTime+d);}catch(e){}}
-function hablar(t){try{const u=new SpeechSynthesisUtterance(t);u.lang="es-ES";u.rate=1.1;speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}}
+function hablar(t){try{const u=new SpeechSynthesisUtterance(t);u.lang="es-ES";u.rate=PL&&PL.r&&PL.r.suave?.85:1.1;speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}}
 function pasos(r,cam){const c=cfg(r),E=exs(r),CA=usaCal(r);
   const out=[{tipo:"prep",s:cam?PREP_CAM:PREP,k:CA?r.cal[0]:E[0]}];
   if(CA){r.cal.forEach((k,i)=>out.push({tipo:"cal",s:T_CAL,k,i}));out.push({tipo:"rest",s:10,k:E[0],ro:1});}
-  for(let ro=1;ro<=c.rondas;ro++){E.forEach((k,i)=>{const st={tipo:"work",s:c.w,k,ro,i};
+  for(let ro=1;ro<=c.rondas;ro++){E.forEach((k,i)=>{const st={tipo:"work",s:(r.dur&&r.dur[k])||c.w,k,ro,i};
       if(cam&&CNT[k]&&!r.fijo){st.reps=metaReps(k);}
       out.push(st);
       if(i<E.length-1) out.push({tipo:"rest",s:c.r,k:E[i+1],ro});});
@@ -698,7 +706,7 @@ function contarRep(){const st=PL.p[PL.i];PL.cnt++;PL.totalReps++;PL.repsPor[st.k
   beep(1200,.08);const falta=st.reps-PL.cnt;
   if(falta<=0){hablar(String(PL.cnt));beep(1500,.25);setTimeout(()=>avanzar(),500);}
   else{hablar(falta<=3?"faltan "+falta:String(PL.cnt));pinta(false);}}
-function avanzar(){if(!PL)return;if(PL.i>=PL.p.length-1)return fin(false);PL.i++;PL.left=PL.p[PL.i].s;PL.cnt=0;PL.fase=null;PL.ema=null;beep(PL.p[PL.i].tipo==="work"?1100:520,.3);pinta(true);}
+function avanzar(){if(!PL)return;if(PL.i>=PL.p.length-1)return fin(false);PL.i++;PL.left=PL.p[PL.i].s;PL.cnt=0;PL.fase=null;PL.ema=null;if(!PL.r.suave)beep(PL.p[PL.i].tipo==="work"?1100:520,.3);pinta(true);}
 
 window.empezar=async id=>{const r=RUT.find(x=>x.id===id);
   try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();actx.resume();}catch(e){}
@@ -722,15 +730,17 @@ function paso(){if(!PL||!PL.run)return;const st=PL.p[PL.i];
   $("pKcal").textContent="🔥 "+Math.round(PL.kcal)+" kcal";
   if(st.reps){PL.left++;return;} // modo reps: cuenta tiempo hacia arriba, no avanza solo
   PL.left--;
-  if(PL.left<=3&&PL.left>0)beep(660);
+  if(PL.r.suave&&st.k==="respiracion"&&st.tipo==="work"){const t=(st.s-PL.left)%10;if(t===0)hablar("Inhala");else if(t===4)hablar("Exhala lento");}
+  if(PL.left<=3&&PL.left>0&&!PL.r.suave)beep(660);
   if(PL.left<=0)avanzar();else pinta(false);}
+const RESP_SVG=`<svg width="150" height="150" viewBox="0 0 150 150" style="display:block;margin:6px auto 0"><circle cx="75" cy="75" r="60" fill="none" stroke="#1e2229" stroke-width="2"/><circle class="resp" cx="75" cy="75" r="60" fill="#4fb3ff" opacity=".35"/><circle class="resp" cx="75" cy="75" r="42" fill="#4fb3ff" opacity=".5"/></svg>`;
 function pinta(nuevo){const st=PL.p[PL.i],e=EJ[st.k],c=cfg(PL.r);
   const col={prep:"#4fb3ff",work:"#c6ff3d",rest:"#ff6b3d",ronda:"#9d8bff",cal:"#ffd23d",vc:"#9d8bff"}[st.tipo];
-  $("pPhase").textContent=st.reps?"Cuenta la cámara":{prep:PL.cam?"Ubica el celular y colócate":"Prepárate",work:"¡Dale!",rest:"Descansa · sigue",cal:"Calentamiento",vc:"Estiramiento final",ronda:"Descanso · ronda "+st.ro}[st.tipo];
+  $("pPhase").textContent=st.reps?"Cuenta la cámara":{prep:PL.cam?"Ubica el celular y colócate":"Prepárate",work:PL.r.suave?"Respira y suelta":"¡Dale!",rest:PL.r.suave?"Sigue":"Descansa · sigue",cal:"Calentamiento",vc:"Estiramiento final",ronda:"Descanso · ronda "+st.ro}[st.tipo];
   $("pPhase").style.color=col;$("pArc").style.stroke=col;$("cam").style.borderColor=col;
   $("pName").textContent=e.n;$("pTip").innerHTML=e.t+(GUIA[st.k]&&GUIA[st.k][1]?`<div style="color:#dfff9a;font-size:13px;margin-top:4px">✅ ${GUIA[st.k][1]}</div>`:"");
   if(nuevo||!$("pDemo").innerHTML){ if(PL.cam){$("pDemo").innerHTML="";let mi=$("cam").querySelector(".mini");if(mi)mi.remove();$("cam").insertAdjacentHTML("beforeend",`<div class="mini">${demoSVG(st.k,84)}</div>`);}
-    else $("pDemo").innerHTML=demoSVG(st.k,st.tipo==="work"?120:150); }
+    else $("pDemo").innerHTML=(st.k==="respiracion"&&st.tipo==="work")?RESP_SVG:demoSVG(st.k,st.tipo==="work"?120:150); }
   if(PL.cam){$("ring").classList.add("off");
     $("camRep").innerHTML=st.reps?`${PL.cnt}<small>/${st.reps}</small>`:`${PL.left}<small>s</small>`;
     if(!st.reps)camMsg("");}
@@ -770,7 +780,7 @@ window.fin=parcial=>{clearInterval(tick);const P=PL,r=P.r;const seg=Math.round((
   if(P.conteo){ses.reps=P.totalReps;ses.metaReps=P.metaTotal;ses.cam=true;}
   if(P.dolor.size){ses.dolor=[...P.dolor];}
   if(P.hecho>=30||P.totalReps>0){S.sesiones.push(ses);save();}
-  beep(990,.15);setTimeout(()=>beep(1320,.3),180);hablar(parcial?"Bien hecho":"¡Rutina completa! Excelente trabajo");
+  if(!r.suave){beep(990,.15);setTimeout(()=>beep(1320,.3),180);}hablar(r.suave?"Listo. Que descanses":parcial?"Bien hecho":"¡Rutina completa! Excelente trabajo");
   const grabando=!!REC; if(grabando) grabFinal(P,seg,()=>grabMostrar());
   salir(grabando);renderAll();
   const pct=P.conteo&&P.metaTotal?Math.round(100*P.totalReps/P.metaTotal):null;
@@ -961,7 +971,7 @@ $("btnComparar").onclick=async()=>{const F=await fotosTodas();if(F.length<2)retu
 const MET={jj:8,jjPaso:5,sentadilla:5,sentSilla:4,sentPulso:5,sentSalto:8,sentPress:5.5,zancada:5,zancadaAtras:4.5,flexion:4.5,flexAbierta:4.5,flexPared:3,flexInclinada:3.5,
   plancha:3.8,planchaRod:3,escalador:8,escaladorSilla:5,burpee:8,rodillas:8,marcha:4.5,puente:3.5,sillaPared:4,pantorrilla:3,fondos:4,pike:4.5,pressBotellas:3.5,
   toqueHombro:4,toqueHombroRod:3.5,superman:3,crunch:3.8,bici:4,elevPiernas:3.5,talones:3,planchaLat:3.5,planchaLatRod:3,deadbug:3,skater:7.5,toquesLat:4.5,
-  boxeo:6,bisagra:3.5,elevPierna1:3,tijeras:3.5,elevLatLado:3,sentCama:4,extRodilla:2.5,abduccion:3,caminata:4.3,circHip:3.5,balPierna:3.5,rotTronco:3,tobillos:2.5,cuello:2.5};
+  boxeo:6,bisagra:3.5,respiracion:1.3,menton:1.5,elevPierna1:3,tijeras:3.5,elevLatLado:3,sentCama:4,extRodilla:2.5,abduccion:3,caminata:4.3,circHip:3.5,balPierna:3.5,rotTronco:3,tobillos:2.5,cuello:2.5};
 const metDe=k=>MET[k]||2.3;            // estiramientos ≈ 2.3
 const MET_DESC=1.5;
 const kgCalc=()=>pesoActual()||75;
@@ -1406,6 +1416,11 @@ const DEMOS={
   elevLatLado:{f:[F(60,-90,[-155,-40],[95,95],[93,93],[92,92]),F(60,-90,[-155,-40],[95,95],[128,128],[92,92])],d:1500,p:"cama",alto:9},
   sentCama:{f:[F(62,180,[95,95],[85,85],[3,3],[-3,-3]),F(52,150,[95,95],[85,85],[90,0],[88,-3])],d:1700,p:"camaB"},
   extRodilla:{f:[F(52,178,[30,10],[25,5],[90,0],[88,-3]),F(52,178,[30,10],[25,5],[92,92],[88,-3])],d:1500,p:"camaB"},
+  respiracion:{f:[F(60,-90,[95,95],[93,93],[140,10],[135,5]),F(60,-90,[95,95],[93,93],[140,10],[135,5],{up:1})],d:5000,p:"cama",alto:9},
+  menton:{f:[F(60,180,[5,5],[-5,-5],[2,2],[-2,-2],{cab:194}),F(60,180,[5,5],[-5,-5],[2,2],[-2,-2],{cab:174})],d:1800},
+  rodillasPecho:{f:[F(60,-90,[125,165],[122,162],[168,45],[163,40]),F(60,-95,[125,165],[122,162],[160,40],[156,36])],d:1800,p:"cama",alto:9},
+  mariposa:{f:[F(60,-90,[95,95],[93,93],[125,20],[120,15]),F(60,-90,[95,95],[93,93],[110,25],[105,20])],d:3000,p:"cama",alto:9},
+  piernasPared:{f:[F(60,-90,[-120,-120],[-118,-118],[178,178],[176,176]),F(60,-90,[-125,-125],[-123,-123],[178,178],[176,176],{up:1})],d:4000,p:"paredD"},
   caminata:{f:[F(60,180,[30,40],[-30,-20],[25,0],[-20,-5]),F(60,180,[-30,-20],[30,40],[-20,-5],[25,0])],d:1100}
 };
 function propSVG(p){
@@ -1416,6 +1431,7 @@ function propSVG(p){
   if(p==="sillaB")return `<path ${c} d="M22 72 H46 M24 72 V108 M44 72 V108 M22 72 V46"/>`;
   if(p==="cama")return `<rect x="4" y="100" width="112" height="9" rx="4" fill="#2c3442"/><rect x="6" y="94" width="20" height="7" rx="3.5" fill="#3d4757"/>`;
   if(p==="camaB")return `<rect x="2" y="86" width="50" height="11" rx="4" fill="#2c3442"/><rect x="4" y="80" width="16" height="7" rx="3.5" fill="#3d4757"/><path d="M8 97 V108 M46 97 V108" stroke="#3a414c" stroke-width="3"/>`;
+  if(p==="paredD")return `<path stroke="#3a414c" stroke-width="3" fill="none" stroke-linecap="round" d="M67 14 V108"/>`;
   if(p==="pared")return `<path ${c} d="M93 20 V108"/>`;
   if(p==="paredI")return `<path ${c} d="M40 20 V108"/>`;
   return "";
@@ -1469,6 +1485,11 @@ const GUIA={
   abduccion:["G","Sube la pierna sin inclinar el cuerpo","Girar la punta del pie hacia arriba"],
   caminata:["C","Paso ligero, brazos activos","Mirar el celular al caminar"],
   circHip:["M","Círculos amplios y lentos","Mover los hombros"],
+  respiracion:["M","Exhala más largo de lo que inhalas","Forzar o aguantar el aire"],
+  rodillasPecho:["M E","Mécete despacio, suelta la espalda baja","Jalar fuerte las rodillas"],
+  mariposa:["M","Deja que la gravedad abra las rodillas","Empujar las rodillas hacia abajo"],
+  piernasPared:["M","Respira lento y suelta los hombros","Bloquear las rodillas"],
+  menton:["M E","Cuello largo, mirada al frente","Bajar la cabeza"],
   elevPierna1:["A Q","Espalda baja pegada a la cama","Subir la pierna con impulso"],
   tijeras:["A","Movimientos cortos y controlados","Arquear la espalda baja"],
   elevLatLado:["G","Pierna estirada y punta del pie al frente","Girar la cadera hacia atrás"],
@@ -1613,6 +1634,7 @@ const TOPS={
   rotTronco:{f:[TP({modo:"pie",rot:38,a1:[[128,1,.6],[128,1,.6]],a2:[[-52,1,.6],[-52,1,.6]]}),TP({modo:"pie",rot:-38,a1:[[52,1,.6],[52,1,.6]],a2:[[-128,1,.6],[-128,1,.6]]})],d:1100,t:"Los pies no se mueven: gira solo el torso."},
   circHip:{f:[TP({modo:"pie",hx:6,hy:0}),TP({modo:"pie",hx:0,hy:6}),TP({modo:"pie",hx:-6,hy:0}),TP({modo:"pie",hx:0,hy:-6})],d:900,t:"La cadera dibuja un círculo; los hombros casi no se mueven."}
 };
+TOPS.mariposa={f:[TP({l1:[[48,.95,.35],[-58,.9,.15]],l2:[[-48,.95,.35],[58,.9,.15]]}),TP({l1:[[62,.98,.15],[-70,.9,.05]],l2:[[-62,.98,.15],[70,.9,.05]]})],d:3000,t:"Plantas de los pies juntas y rodillas abiertas hacia los lados."};
 TOPS.toqueHombroRod=TOPS.toqueHombro;TOPS.escaladorSilla=TOPS.escalador;
 function mezclaT(A,B,t){const o={...A};["rot","hx","hy","tA"].forEach(k=>o[k]=lerp(A[k],B[k],t));
   ["a1","a2","l1","l2"].forEach(k=>o[k]=A[k].map((s,i)=>s.map((v,j)=>lerp(v,B[k][i][j],t))));return o;}
