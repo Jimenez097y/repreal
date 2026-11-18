@@ -147,6 +147,7 @@ nav button.on{color:var(--acc)}
       <div class="stat"><b id="s-semana">0</b><span>esta semana</span></div>
       <div class="stat"><b id="s-peso">—</b><span>peso (kg)</span></div>
     </div>
+    <div class="sub" id="s-hk" style="text-align:center;margin-top:10px;color:var(--acc)"></div>
     <div class="card" style="margin-top:12px">
       <div class="row" style="justify-content:space-between"><b>Tu semana</b><span class="sub" id="metaTxt">meta: 4 días</span></div>
       <div class="week" id="week"></div>
@@ -238,6 +239,7 @@ nav button.on{color:var(--acc)}
     <div class="card">
       <div id="ajVoz" style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--line)"></div>
       <div id="ajIA" style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--line)"></div>
+      <div class="sw" style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--line)"><div><b>📱 Conectar con Salud (iPhone)</b><div class="sub" style="margin-top:3px">Pasos, km y kcal activas con un Atajo</div></div><button class="btn sm ghost" onclick="atajoInfo()">Ver</button></div>
       <div class="sub" style="margin-bottom:6px">Tu nombre</div>
       <input id="inNombre" placeholder="¿Cómo te llamas?" style="margin-bottom:14px">
       <div class="sub" style="margin-bottom:6px">Meta de días por semana</div>
@@ -487,7 +489,7 @@ function lastTxt(id){const d=diasDesde(id);if(d===null)return "Aún no la haces"
 function renderHoy(){
   const h=new Date().getHours();
   $("saludo").textContent=(h<12?"Buenos días":h<19?"Buenas tardes":"Buenas noches")+(S.nombre?", "+S.nombre:"");
-  const dias=new Set(S.sesiones.map(s=>s.f));
+  const dias=new Set(S.sesiones.filter(s=>s.rut!=="salud"||(s.pasos||0)>=7000).map(s=>s.f));
   // racha
   let r=0,d=new Date(); if(!dias.has(hoyStr(d))) d.setDate(d.getDate()-1);
   while(dias.has(hoyStr(d))){r++;d.setDate(d.getDate()-1);}
@@ -508,6 +510,7 @@ function renderHoy(){
   sug=cand[0];
   if(r>=3 && !hechaHoy) sug=RUT.find(x=>x.id==="movilidad");
   if(!S.sesiones.length) sug=RUT[0];
+  {const hk=S.sesiones.find(x=>x.rut==="salud"&&x.f===hoyStr());$("s-hk").textContent=hk?`📱 Hoy: ${hk.pasos?fmt(hk.pasos)+" pasos":""}${hk.km?" · "+hk.km+" km":""}${hk.kcal?" · "+fmt(hk.kcal)+" kcal activas":""}`:"";}
   {const m=metaKcal(),c=comidoDe(hoyStr());$("hoyComida").innerHTML=`<div class="cthumb">🍽️</div><div class="tx"><b>${m?fmt(c)+" / "+fmt(m)+" kcal":"Registra tu comida"}</b><div class="sub">${m?(comidasDe(hoyStr()).length+" comida"+(comidasDe(hoyStr()).length===1?"":"s")+" hoy · 🔥 "+fmt(ejercicioDe(hoyStr()))+" kcal de ejercicio"):"Completa tu perfil y sube la foto de tu plato"}</div></div><span class="pill on">+</span>`;}
   {const h=new Date().getHours(),id=h>=20||h<4?"dormir":h>=17?"camaN":"camaM",r=RUT.find(x=>x.id===id);
    $("hoyCama").onclick=()=>detalle(id);
@@ -546,15 +549,15 @@ function renderRutinas(){
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8b939e" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>`).join("");
 }
 function renderProgreso(){
-  $("t-ses").textContent=S.sesiones.length;
+  $("t-ses").textContent=S.sesiones.filter(s=>s.rut!=="salud").length;
   $("t-min").textContent=Math.round(S.sesiones.reduce((a,s)=>a+s.seg,0)/60);
   $("t-kcal").textContent=Math.round(S.sesiones.reduce((a,s)=>a+(s.kcal||0),0));
   {const km=S.sesiones.reduce((a,s)=>a+(s.km||0),0);$("t-km").textContent=km?"🚶 "+km.toFixed(1)+" km recorridos en total":"";}
   if(S.meta) $("inMeta").placeholder="Meta actual: "+S.meta+" kg";
   // historial
-  const h=[...S.sesiones].reverse().slice(0,40);const nomS=s=>s.rut==="caminata"?(ACTS[s.act||"caminata"]||ACTS.caminata).ic+" "+(ACTS[s.act||"caminata"]||ACTS.caminata).n:(RUT.find(x=>x.id===s.rut)?nomR(RUT.find(x=>x.id===s.rut)):s.rut);
+  const h=[...S.sesiones].reverse().slice(0,40);const nomS=s=>s.rut==="salud"?"📱 Actividad del día (Salud)":s.rut==="caminata"?(ACTS[s.act||"caminata"]||ACTS.caminata).ic+" "+(ACTS[s.act||"caminata"]||ACTS.caminata).n:(RUT.find(x=>x.id===s.rut)?nomR(RUT.find(x=>x.id===s.rut)):s.rut);
   $("historial").innerHTML=h.length?h.map(s=>{const r=RUT.find(x=>x.id===s.rut);const f=new Date(s.f+"T12:00");
-    return `<li><span><b>${nomS(s)}</b><br><span class="sub">${f.toLocaleDateString("es-PE",{weekday:"short",day:"numeric",month:"short"})} · ${Math.round(s.seg/60)} min · ${Math.round(s.kcal||0)} kcal${s.km?" · "+s.km+" km":""}${s.km&&s.seg?" · "+Math.floor(s.seg/60/s.km)+"'"+String(Math.round(s.seg/s.km%60)).padStart(2,"0")+"\"/km":""}${s.kcalDisp?" 📱":""}${s.cam?" · "+s.reps+"/"+s.metaReps+" reps 📷":""}${s.dolor&&s.dolor.length?" · molestia":""}${s.parcial?" · incompleta":""}</span></span><button class="x" onclick="borrarSes(${s.t})">✕</button></li>`}).join(""):`<div class="empty">Aún no hay sesiones. ¡La primera es la más importante!</div>`;
+    return `<li><span><b>${nomS(s)}</b><br><span class="sub">${f.toLocaleDateString("es-PE",{weekday:"short",day:"numeric",month:"short"})} · ${Math.round(s.seg/60)} min · ${Math.round(s.kcal||0)} kcal${s.pasos?" · "+fmt(s.pasos)+" pasos":""}${s.km?" · "+s.km+" km":""}${s.km&&s.seg?" · "+Math.floor(s.seg/60/s.km)+"'"+String(Math.round(s.seg/s.km%60)).padStart(2,"0")+"\"/km":""}${s.kcalDisp?" 📱":""}${s.cam?" · "+s.reps+"/"+s.metaReps+" reps 📷":""}${s.dolor&&s.dolor.length?" · molestia":""}${s.parcial?" · incompleta":""}</span></span><button class="x" onclick="borrarSes(${s.t})">✕</button></li>`}).join(""):`<div class="empty">Aún no hay sesiones. ¡La primera es la más importante!</div>`;
   seg("segMeta",[3,4,5,6].map(n=>({v:n,l:n+" días"})),S.metaDias,v=>{S.metaDias=+v;save();renderAll();});
   renderChart();
 }
@@ -870,6 +873,42 @@ window.caminata=()=>{
     S.sesiones.push(ses);S.sesiones.sort((a,b)=>a.t-b.t);save();renderAll();cerrar();toast(ACTS[tipo].ic+" ¡"+ACTS[tipo].n+" registrada!");};
 };
 
+/* ===================== DATOS DESDE SALUD (Atajo de iOS) ===================== */
+const numSalud=(v,entero)=>{if(v==null)return null;let t=String(v).replace(/[^0-9.,]/g,"");if(!t)return null;
+  if(entero){t=t.replace(/[.,]\d{1,2}$/,"").replace(/[.,]/g,"");const n=parseInt(t);return isFinite(n)?n:null;}
+  if(t.includes(",")&&t.includes("."))t=t.lastIndexOf(",")>t.lastIndexOf(".")?t.replace(/\./g,"").replace(",","."):t.replace(/,/g,"");
+  else if(t.includes(","))t=/,\d{3}$/.test(t)&&!/,\d{1,2}$/.test(t)?t.replace(/,/g,""):t.replace(",",".");
+  const n=parseFloat(t);return isFinite(n)?n:null;};
+function recibirSalud(){
+  let q;try{q=new URLSearchParams(location.search);}catch(e){return;}
+  if(!q.get("hk"))return;
+  try{history.replaceState(null,"",location.pathname+location.hash);}catch(e){}
+  let f=(q.get("fecha")||"").trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(f)){const m=f.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
+    f=m?`${m[3].length===2?"20"+m[3]:m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`:hoyStr();}
+  if(f>hoyStr())f=hoyStr();
+  const kcal=numSalud(q.get("kcal")),km=numSalud(q.get("km")),pasos=numSalud(q.get("pasos"),true);
+  if(kcal==null&&km==null&&pasos==null){setTimeout(()=>toast("El Atajo no envió datos. Revisa los pasos de configuración."),600);return;}
+  S.sesiones=S.sesiones.filter(x=>!(x.rut==="salud"&&x.f===f));
+  const d=new Date(f+"T21:00");
+  const ses={id:"hk-"+f,t:d.getTime(),f,rut:"salud",seg:0,kcal:Math.round(kcal||0),salud:1};
+  if(km)ses.km=+km.toFixed(2);if(pasos)ses.pasos=Math.round(pasos);
+  S.sesiones.push(ses);S.sesiones.sort((a,b)=>a.t-b.t);S.saludUlt=Date.now();save();
+  setTimeout(()=>{$("sheet").innerHTML=`<div style="text-align:center"><div style="font-size:48px">📱</div><h2 style="margin-top:4px">Datos de Salud recibidos</h2>
+    <div class="sub">${f===hoyStr()?"Hoy":new Date(f+"T12:00").toLocaleDateString("es-PE",{weekday:"long",day:"numeric",month:"short"})}</div>
+    <div class="grid3" style="margin:16px 0"><div class="stat"><b>${pasos!=null?fmt(pasos):"—"}</b><span>pasos</span></div><div class="stat"><b>${km!=null?km.toFixed(1):"—"}</b><span>km</span></div><div class="stat"><b>${kcal!=null?fmt(kcal):"—"}</b><span>kcal activas</span></div></div>
+    <p class="sub" style="font-size:13px">Se suma a tu balance del día sin contar dos veces las caminatas que ya registraste.${(pasos||0)>=7000?" 🔥 Con más de 7 000 pasos, hoy cuenta para tu racha.":""}</p>
+    <button class="btn" style="margin-top:12px" onclick="cerrar()">Listo</button></div>`;abrir();},500);
+}
+window.atajoInfo=()=>{const base=location.origin+location.pathname;
+  $("sheet").innerHTML=`<h2 style="margin-top:0">📱 Conectar con Salud</h2>
+   <div class="sub" style="font-size:14px;line-height:1.5">Un Atajo de tu iPhone lee tus pasos, km y calorías activas de hoy y los manda a la app con un toque (o solo, cada noche).</div>
+   <div class="card" style="margin-top:12px;font-size:13px;line-height:1.6">Al final del Atajo, la dirección debe empezar así:<br><code style="color:var(--acc);word-break:break-all">${base}?hk=1&amp;fecha=…&amp;pasos=…&amp;km=…&amp;kcal=…</code></div>
+   <button class="btn sm" style="margin-top:10px;width:100%" id="cpBase">Copiar dirección base</button>
+   <a class="btn sm ghost" style="margin-top:8px;width:100%;display:block" href="${base}?hk=1&fecha=${hoyStr()}&pasos=1234&km=0.9&kcal=55">Probar con datos de ejemplo</a>
+   <p class="sub" style="font-size:12px;margin-top:10px">Importante: el Atajo debe abrir el mismo navegador donde usas la app (Brave o Safari). Tus datos viven en ese navegador.</p>`;
+  abrir();$("cpBase").onclick=async()=>{try{await navigator.clipboard.writeText(base+"?hk=1");toast("Copiado");}catch(e){toast(base+"?hk=1");}};};
+
 /* ===================== MARCA DE AGUA ===================== */
 const APP_NOMBRE="REPREAL";
 function marca(ctx,W,H,sub){
@@ -1056,7 +1095,12 @@ async function achicar(file,max=720){const img=await blobImg(file);const s=Math.
 let diaCom=hoyStr();
 const comidasDe=f=>(S.comidas||[]).filter(c=>c.f===f);
 const comidoDe=f=>comidasDe(f).reduce((a,c)=>a+c.kcal,0);
-const ejercicioDe=f=>S.sesiones.filter(s=>s.f===f).reduce((a,s)=>a+(s.kcal||0),0);
+function ejercicioDe(f){const L=S.sesiones.filter(s=>s.f===f),hk=L.find(s=>s.rut==="salud");
+  const otras=L.filter(s=>s.rut!=="salud"),tot=otras.reduce((a,s)=>a+(s.kcal||0),0);
+  if(!hk)return tot;
+  // Salud ya incluye todo lo que el iPhone midió ese día (caminatas incluidas): no se suman dos veces
+  const medidas=otras.filter(s=>s.kcalDisp).reduce((a,s)=>a+s.kcal,0);
+  return Math.max(hk.kcal||0,medidas)+(tot-medidas);}
 function balanceDia(f){const g=gastoBase();if(!g||!comidasDe(f).length)return null;return comidoDe(f)-(g+ejercicioDe(f));}
 function semanaDias(){const out=[];const d=new Date();for(let i=6;i>=0;i--){const x=new Date(d);x.setDate(d.getDate()-i);out.push(hoyStr(x));}return out;}
 const fmt=n=>Math.round(n).toLocaleString("es-PE");
@@ -1769,6 +1813,7 @@ document.addEventListener("click",e=>{const s=e.target.closest&&e.target.closest
 $("inNombre").value=S.nombre||"";$("inNombre").onchange=e=>{S.nombre=e.target.value.trim().slice(0,30);save();renderHoy();};
 Object.entries(CAMA_COPIA).forEach(([n,o])=>{EJ[n]={n:EJ[o].n,t:EJ[o].t+" Sobre la cama."};if(GUIA[o])GUIA[n]=GUIA[o];if(MET[o])MET[n]=Math.max(2,MET[o]-.5);
   if(CNT[o])CNT[n]=CNT[o];if(TOPS[o])TOPS[n]=TOPS[o];DEMOS[n]={...DEMOS[o],p:"cama",alto:9};});
+recibirSalud();
 renderAll();renderFotos();animarDemos();
 window.addEventListener("resize",renderChart);
 </script>
