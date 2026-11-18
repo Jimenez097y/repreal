@@ -896,7 +896,7 @@ function recibirSalud(){
   const d=new Date(f+"T21:00");
   // Sin Apple Watch el iPhone casi no mide energía activa: se estima por pasos (≈0.00057 kcal por paso y por kg)
   const porPasos=pasos?pasos*0.00057*kgCalc():0;
-  const sospechosa=kcal!=null&&pasos&&Math.round(kcal)===Math.round(pasos)&&pasos>50;
+  const sospechosa=kcal!=null&&pasos&&Math.round(kcal)===Math.round(pasos)&&pasos>=10;
   const kcalUsar=Math.round(Math.max(sospechosa?0:(kcal||0),porPasos));
   const ses={id:"hk-"+f,t:d.getTime(),f,rut:"salud",seg:0,kcal:kcalUsar,salud:1};
   if(kcalUsar>Math.round(sospechosa?0:(kcal||0)))ses.kcalEst=1;
