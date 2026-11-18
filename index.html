@@ -894,13 +894,18 @@ function recibirSalud(){
   if(kcal==null&&km==null&&pasos==null){setTimeout(()=>toast("El Atajo no envió datos. Revisa los pasos de configuración."),600);return;}
   S.sesiones=S.sesiones.filter(x=>!(x.rut==="salud"&&x.f===f));
   const d=new Date(f+"T21:00");
-  const ses={id:"hk-"+f,t:d.getTime(),f,rut:"salud",seg:0,kcal:Math.round(kcal||0),salud:1};
+  // Sin Apple Watch el iPhone casi no mide energía activa: se estima por pasos (≈0.00057 kcal por paso y por kg)
+  const porPasos=pasos?pasos*0.00057*kgCalc():0;
+  const sospechosa=kcal!=null&&pasos&&Math.round(kcal)===Math.round(pasos)&&pasos>50;
+  const kcalUsar=Math.round(Math.max(sospechosa?0:(kcal||0),porPasos));
+  const ses={id:"hk-"+f,t:d.getTime(),f,rut:"salud",seg:0,kcal:kcalUsar,salud:1};
+  if(kcalUsar>Math.round(sospechosa?0:(kcal||0)))ses.kcalEst=1;
   if(km)ses.km=+km.toFixed(2);if(pasos)ses.pasos=Math.round(pasos);
   S.sesiones.push(ses);S.sesiones.sort((a,b)=>a.t-b.t);S.saludUlt=Date.now();save();
   setTimeout(()=>{$("sheet").innerHTML=`<div style="text-align:center"><div style="font-size:48px">📱</div><h2 style="margin-top:4px">Datos de Salud recibidos</h2>
     <div class="sub">${f===hoyStr()?"Hoy":new Date(f+"T12:00").toLocaleDateString("es-PE",{weekday:"long",day:"numeric",month:"short"})}</div>
-    <div class="grid3" style="margin:16px 0"><div class="stat"><b>${pasos!=null?fmt(pasos):"—"}</b><span>pasos</span></div><div class="stat"><b>${km!=null?km.toFixed(1):"—"}</b><span>km</span></div><div class="stat"><b>${kcal!=null?fmt(kcal):"—"}</b><span>kcal activas</span></div></div>
-    <p class="sub" style="font-size:13px">Se suma a tu balance del día sin contar dos veces las caminatas que ya registraste.${(pasos||0)>=7000?" 🔥 Con más de 7 000 pasos, hoy cuenta para tu racha.":""}</p>
+    <div class="grid3" style="margin:16px 0"><div class="stat"><b>${pasos!=null?fmt(pasos):"—"}</b><span>pasos</span></div><div class="stat"><b>${km!=null?km.toFixed(1):"—"}</b><span>km</span></div><div class="stat"><b>${fmt(ses.kcal)}</b><span>kcal activas${ses.kcalEst?" (est.)":""}</span></div></div>
+    ${ses.kcalEst?`<p class="sub" style="font-size:12px;margin-bottom:6px">Tu iPhone no midió energía activa (pasa sin Apple Watch): la estimé por tus pasos y tu peso.</p>`:""}<p class="sub" style="font-size:13px">Se suma a tu balance del día sin contar dos veces las caminatas que ya registraste.${(pasos||0)>=7000?" 🔥 Con más de 7 000 pasos, hoy cuenta para tu racha.":""}</p>
     <button class="btn" style="margin-top:12px" onclick="cerrar()">Listo</button></div>`;abrir();},500);
 }
 window.atajoInfo=()=>{const base=location.origin+location.pathname;
